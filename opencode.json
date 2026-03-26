@@ -1,0 +1,100 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "oh-my-opencode@latest",
+  ],
+  "provider": {
+    "ollama": {
+      "models": {
+        "glm-4.7-flash:latest": {
+          "_launch": true,
+          "name": "glm-4.7-flash:latest"
+        },
+        "gpt-oss:20b-16k": {
+          "_launch": true,
+          "name": "gpt-oss:20b-16k"
+        },
+        "qwen2.5-coder:14b": {
+          "_launch": true,
+          "name": "qwen2.5-coder:14b"
+        },
+        "qwen3-coder:30b": {
+          "_launch": true,
+          "name": "qwen3-coder:30b"
+        },
+        "qwen3.5:cloud": {
+          "_launch": true,
+          "name": "qwen3.5:cloud"
+        }
+      },
+      "name": "Ollama (local)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://localhost:11434/v1"
+      }
+    },
+    "ollama-cloud": {
+      "models": {
+        "nemotron-3-super": {
+          "name": "nemotron-3-super",
+          "tools": true,
+          "thinking": true
+        }
+      }
+    }
+  },
+  "mcp": {
+    "sequential-thinking": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "enabled": true,
+      "environment": {}
+    },
+    "playwright": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@executeautomation/playwright-mcp-server"
+      ],
+      "enabled": true,
+      "environment": {}
+    },
+    "docfork": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "docfork"
+      ],
+      "enabled": true,
+      "environment": {}
+    },
+    "searxng": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "mcp-searxng"
+      ],
+      "enabled": true,
+      "environment": {
+        "SEARXNG_URL": "http://localhost:4000"
+      }
+    },
+    "notebooklm-mcp": {
+      "type": "local",
+      "enabled": false,
+      "command": [
+        "uvx",
+        "--from",
+        "notebooklm-mcp-cli",
+        "notebooklm-mcp"
+      ]
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
+  "google_auth": false,
+  "agents": {
+    "sisyphus": {
+      "model": "ollama-cloud/glm-5"
+    },
+    "sisyphus-junior": {
+      "model": "ollama-cloud/qwen3-coder-next"
+    },
+    "librarian": {
+      "model": "ollama-cloud/kimi-k2.5"
+    },
+    "explore": {
+      "model": "ollama-cloud/kimi-k2.5"
+    },
+    "oracle": {
+      "model": "ollama-cloud/nemotron-3-super"
+    },
+    "frontend-ui-ux-engineer": {
+      "model": "ollama-cloud/gemini-3-flash-preview"
+    },
+    "document-writer": {
+      "model": "ollama-cloud/kimi-k2.5"
+    },
+    "multimodal-looker": {
+      "model": "ollama-cloud/gemini-3-flash-preview"
+    },
+    "hephaestus": {
+      "model": "ollama-cloud/qwen3-coder-next"
+    },
+    "prometheus": {
+      "model": "ollama-cloud/kimi-k2-thinking"
+    },
+    "metis": {
+      "model": "ollama-cloud/kimi-k2-thinking"
+    },
+    "momus": {
+      "model": "ollama-cloud/nemotron-3-super"
+    },
+    "atlas": {
+      "model": "ollama-cloud/minimax-m2.7"
+    }
+  },
+  "categories": {
+    "visual-engineering": {
+      "model": "ollama-cloud/gemini-3-flash-preview"
+    },
+    "ultrabrain": {
+      "model": "ollama-cloud/glm-5"
+    },
+    "deep": {
+      "model": "ollama-cloud/kimi-k2-thinking"
+    },
+    "artistry": {
+      "model": "ollama-cloud/minimax-m2.7"
+    },
+    "quick": {
+      "model": "ollama-cloud/gemma3:12b"
+    },
+    "unspecified-low": {
+      "model": "ollama-cloud/ministral-3:8b"
+    },
+    "unspecified-high": {
+      "model": "ollama-cloud/glm-5"
+    },
+    "writing": {
+      "model": "ollama-cloud/gemini-3-flash-preview"
+    }
+  }
+}
