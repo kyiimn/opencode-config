@@ -3,7 +3,7 @@
   "google_auth": false,
   "agents": {
     "sisyphus": {
-      "model": "ollama-cloud/glm-5"
+      "model": "ollama-cloud/gemini-3-flash-preview"
     },
     "sisyphus-junior": {
       "model": "ollama-cloud/qwen3-coder-next"
@@ -12,7 +12,7 @@
       "model": "ollama-cloud/kimi-k2.5"
     },
     "explore": {
-      "model": "ollama-cloud/kimi-k2.5"
+      "model": "ollama-cloud/minimax-m2.7"
     },
     "oracle": {
       "model": "ollama-cloud/nemotron-3-super"
