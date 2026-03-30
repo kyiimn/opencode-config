@@ -1,12 +1,11 @@
 {
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
-  "google_auth": false,
   "agents": {
-    "sisyphus": {
-      "model": "ollama-cloud/glm-5"
-    },
-    "sisyphus-junior": {
+    "hephaestus": {
       "model": "ollama-cloud/qwen3-coder-next"
+    },
+    "oracle": {
+      "model": "ollama-cloud/nemotron-3-super"
     },
     "librarian": {
       "model": "ollama-cloud/kimi-k2.5"
@@ -14,20 +13,8 @@
     "explore": {
       "model": "ollama-cloud/minimax-m2.7"
     },
-    "oracle": {
-      "model": "ollama-cloud/nemotron-3-super"
-    },
-    "frontend-ui-ux-engineer": {
-      "model": "ollama-cloud/gemini-3-flash-preview"
-    },
-    "document-writer": {
-      "model": "ollama-cloud/kimi-k2.5"
-    },
     "multimodal-looker": {
       "model": "ollama-cloud/gemini-3-flash-preview"
-    },
-    "hephaestus": {
-      "model": "ollama-cloud/qwen3-coder-next"
     },
     "prometheus": {
       "model": "ollama-cloud/kimi-k2-thinking"
@@ -40,6 +27,18 @@
     },
     "atlas": {
       "model": "ollama-cloud/minimax-m2.7"
+    },
+    "sisyphus-junior": {
+      "model": "ollama-cloud/qwen3-coder-next"
+    },
+    "sisyphus": {
+      "model": "ollama-cloud/glm-5"
+    },
+    "frontend-ui-ux-engineer": {
+      "model": "ollama-cloud/gemini-3-flash-preview"
+    },
+    "document-writer": {
+      "model": "ollama-cloud/kimi-k2.5"
     }
   },
   "categories": {
@@ -67,5 +66,6 @@
     "writing": {
       "model": "ollama-cloud/gemini-3-flash-preview"
     }
-  }
+  },
+  "google_auth": false
 }
