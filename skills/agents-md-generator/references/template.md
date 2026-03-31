@@ -244,12 +244,35 @@ export default [...baseConfig];
 ```
 계획을 제시하고 승인 후 구현 시작. 계획 없이 착수 금지.
 
+> **그린필드 초기화 규칙**
+> `AGENTS.md`(또는 `RULES.md`)만 존재하고 `src/` 또는 `apps/` 디렉터리가 없는 상태에서
+> 프로젝트 구조를 초기화한 경우, 초기화 완료 즉시 아래 검증 파이프라인을 **자동 실행**한다.
+> 검증 없이 초기화 완료를 보고하는 것을 금지한다.
+>
+> ```bash
+> pnpm tsc --noEmit              # 타입 설정 오류 확인
+> pnpm eslint --fix .            # 전체 파일 lint 자동 수정 후 잔여 에러 확인
+> pnpm vitest run                # 초기 테스트(있을 경우) 통과 확인
+> ```
+>
+> 검증 파이프라인 통과 후 완료를 보고한다.
+> 명령어가 존재하지 않거나 설정 파일이 없어 실행 불가한 경우 즉시 사용자에게 보고하고 루프에 재진입하지 않는다.
+
 ### 2단계: 구현
 
 구현 코드와 JSDoc을 동시에 작성한다. 어느 한쪽만 작성하는 것을 금지한다.
 상세 JSDoc 규칙: `RULES.md#jsdoc`
 
 ### 3단계: 검증 (자동 피드백 루프)
+
+**테스트 코드 작성** (검증 파이프라인 진입 전)
+
+```
+테스트 작성 방식 분기 (RULES.md#testing 설정 기준):
+
+직접 작성 모드  → 에이전트가 직접 {구현파일}.test.ts 작성 후 아래 파이프라인 진입
+Gemini 위임 모드 → gemini-test-delegate 스킬 로드 → 위임 실행 → 테스트 파일 확보 후 아래 파이프라인 진입
+```
 
 **검증 파이프라인 (순서 엄수)**
 ```bash
@@ -482,6 +505,7 @@ Loop 1~N 실패 요약 / 패턴 분석 / 추정 원인 / 권장 조치
 |------|------------|
 | AGENTS.md만 존재하는 빈 프로젝트를 **Express.js + DDD + API** 구조로 초기화할 때 | `express-api-starter` 스킬 |
 | DDD 아키텍처 기반 패키지의 AGENTS.md를 생성하거나 수정할 때 | `ddd-architecture` 스킬 |
+| 구현 완료 후 테스트 코드 작성 방식이 **Gemini CLI 위임**으로 설정된 경우 | `gemini-test-delegate` 스킬 |
 
 ### express-api-starter 스킬 트리거 조건
 - `AGENTS.md`(또는 `RULES.md`)만 존재하고 `src/` 또는 `apps/` 디렉터리가 없는 상태에서
@@ -921,6 +945,38 @@ src/modules/{module}/
 - edge case·error path 함께 작성
 - 테스트명: `{대상}_{조건}_{기대결과}`
   - 예: `getUser_존재하지않는id_NotFoundError반환`
+
+### 테스트 코드 작성 방식
+
+<!-- Q-TE1 선택 결과에 따라 아래 두 섹션 중 하나만 포함한다 -->
+
+<!-- [Q-TE1 = 에이전트 직접 작성] 아래 섹션 포함 -->
+#### 직접 작성 모드
+구현 완료 후 에이전트가 직접 Vitest 테스트를 작성한다.
+`AGENT WORKFLOW` 3단계(검증) 파이프라인 진입 전 테스트 파일을 작성하고,
+`pnpm vitest run {파일}` 으로 통과를 확인한 뒤 다음 단계로 진행한다.
+<!-- [/Q-TE1 = 에이전트 직접 작성] -->
+
+<!-- [Q-TE1 = Gemini CLI 위임] 아래 섹션 포함 -->
+#### Gemini CLI 위임 모드
+구현 완료 후 테스트 코드 작성은 `gemini-test-delegate` 스킬에 위임한다.
+
+**위임 트리거 조건**: 구현 파일이 저장되고 `AGENT WORKFLOW` 3단계(검증) 진입 시점
+
+**위임 시 에이전트가 수행할 절차**:
+1. `gemini-test-delegate` 스킬을 로드한다
+2. 스킬 Step 1~2에 따라 위임 블록 + 구현 파일 경로를 입력으로 제공한다
+3. 스킬이 생성한 `gemini -p "..."` 명령어를 실행한다
+4. Gemini가 생성한 테스트 파일을 스킬 Step 5 체크리스트로 검토한다
+5. `pnpm vitest run {테스트_파일_경로}` 로 통과를 확인한다
+
+**gemini-test-delegate 스킬 필수 입력**:
+- 위임 블록 전문 (Sisyphus → Hephaestus 핸드오프 블록)
+- 구현 완료된 파일 경로
+
+**Gemini CLI 미설치 시**: `npm install -g @google/gemini-cli` 후 재시도.
+설치 불가한 환경이면 즉시 사용자에게 보고하고 직접 작성 모드로 전환한다.
+<!-- [/Q-TE1 = Gemini CLI 위임] -->
 ```
 
 ---
