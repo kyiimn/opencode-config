@@ -92,23 +92,40 @@ pnpm workspaces 기반 모노레포.
 
 ```
 {project-name}/
-├── apps/
-│   ├── {cli}/
-│   ├── {web}/
-│   └── {api}/
+├── apps/               # 배포 단위 애플리케이션 (패키지별 AGENTS.md 존재)
 ├── packages/
-│   └── core/
+│   └── core/           # 모노레포 공유 설정·라이브러리
+│       ├── tsconfig/
+│       │   ├── base.json        # 모든 패키지가 extends하는 기본 tsconfig
+│       │   ├── app.json         # 앱(Node/Bun) 전용 tsconfig
+│       │   └── react-lib.json   # React 라이브러리 전용 tsconfig
+│       ├── eslint/
+│       │   ├── index.js         # 공통 ESLint flat config (base)
+│       │   ├── react.js         # React 패키지용 ESLint 확장
+│       │   └── node.js          # Node/API 패키지용 ESLint 확장
+│       └── src/
+│           └── index.ts         # 공유 타입·유틸리티 진입점
 ├── AGENTS.md
 ├── RULES.md
 ├── pnpm-workspace.yaml
 ├── package.json
-└── tsconfig.base.json
+└── tsconfig.json       # 루트 tsconfig (packages/core/tsconfig/base.json extends)
 ```
 
-- `apps/` — 배포 단위 애플리케이션
-- `packages/` — 앱 간 공유 라이브러리
+- `apps/` — 배포 단위 애플리케이션. 각 앱은 `packages/core/tsconfig`와 `packages/core/eslint`를 참조한다
+- `packages/core/` — 모노레포 전체가 공유하는 tsconfig·ESLint 설정 및 공유 라이브러리
 
 **임포트 규칙**: 패키지 이름으로 임포트. 상대 경로로 경계를 넘지 않는다.
+
+**설정 참조 패턴**:
+```jsonc
+// 각 패키지의 tsconfig.json
+{ "extends": "@{scope}/core/tsconfig/app.json" }
+
+// 각 패키지의 eslint.config.js
+import baseConfig from '@{scope}/core/eslint/node.js';
+export default [...baseConfig];
+```
 ```
 
 ---
@@ -236,9 +253,10 @@ pnpm workspaces 기반 모노레포.
 
 **검증 파이프라인 (순서 엄수)**
 ```bash
-pnpm tsc --noEmit          # Step 1: 타입 에러 먼저 제거
-pnpm vitest run {파일}     # Step 2: 단일 파일
-pnpm vitest run            # Step 3: 전체 회귀
+pnpm tsc --noEmit              # Step 1: 타입 에러 먼저 제거
+pnpm eslint --fix {파일경로}   # Step 2: lint 자동 수정 후 잔여 에러 확인
+pnpm vitest run {파일}         # Step 3: 단일 파일 테스트
+pnpm vitest run                # Step 4: 전체 회귀 테스트
 ```
 
 에러 발생 시 사람의 개입 없이 자동 처리:
@@ -255,6 +273,7 @@ exit code ≠ 0 또는 stderr 존재?
     ▼
 에러 분류
     ├─ TypeScript 타입 에러  → 파일명:라인:열 + 메시지 파싱
+    ├─ ESLint 에러           → rule ID + 파일명:라인 파싱 (--fix 후 잔여 에러)
     ├─ Vitest 실패           → describe/it 경로 + expect 실패값 파싱
     └─ 런타임/툴 에러        → stderr 전문 + exit code 기록
     │
@@ -451,7 +470,32 @@ Loop 1~N 실패 요약 / 패턴 분석 / 추정 원인 / 권장 조치
 
 ---
 
-## [A:PKG] OVERVIEW
+## [A:ROOT] SKILL POINTERS
+
+```markdown
+## SKILL POINTERS
+
+특정 작업을 시작하기 전에 아래 스킬을 반드시 먼저 로드한다.
+스킬 파일을 읽지 않고 작업에 착수하는 것을 금지한다.
+
+| 상황 | 사용할 스킬 |
+|------|------------|
+| AGENTS.md만 존재하는 빈 프로젝트를 **Express.js + DDD + API** 구조로 초기화할 때 | `express-api-starter` 스킬 |
+| DDD 아키텍처 기반 패키지의 AGENTS.md를 생성하거나 수정할 때 | `ddd-architecture` 스킬 |
+
+### express-api-starter 스킬 트리거 조건
+- `AGENTS.md`(또는 `RULES.md`)만 존재하고 `src/` 또는 `apps/` 디렉터리가 없는 상태에서
+- 사용자가 "Express", "express-api", "API 서버 초기화", "프로젝트 세팅" 등을 언급할 때
+
+### ddd-architecture 스킬 트리거 조건
+- API 패키지 AGENTS.md 생성·수정 요청이 있을 때
+- DDD, Domain-Driven Design, 레이어드 아키텍처, 헥사고날 아키텍처 등의 키워드가 등장할 때
+- `modules/{module}/domain|application|infrastructure` 구조를 다루는 모든 작업
+```
+
+---
+
+
 
 ```markdown
 ## OVERVIEW
@@ -619,12 +663,61 @@ src/
 ### 네이밍 규칙
 | 대상 | 규칙 | 예시 |
 |------|------|------|
-| 클래스 | PascalCase | `UserService` |
-| 인터페이스 | {INTERFACE_PREFIX}PascalCase | `{INTERFACE_EXAMPLE}` |
+| 파일 | {FILE_NAMING_CONVENTION} | `{FILE_NAMING_EXAMPLE}` |
+| 클래스 | {CLASS_NAMING} | `{CLASS_NAMING_EXAMPLE}` |
+| 인터페이스 | {INTERFACE_NAMING} | `{INTERFACE_NAMING_EXAMPLE}` |
 | Type alias | PascalCase | `UserDto`, `ApiResponse<T>` |
-| 함수/메서드 | camelCase | `{FUNCTION_EXAMPLE}` |
+| 함수/메서드 | {METHOD_NAMING} | `{METHOD_NAMING_EXAMPLE}` |
 | 상수 | SCREAMING_SNAKE_CASE | `MAX_RETRY_COUNT` |
 | 열거형 | PascalCase (enum) / SCREAMING_SNAKE (값) | `Status.ACTIVE` |
+
+### 타입 정의 방식
+{TYPE_DEFINITION_STYLE}
+<!--
+  선택지별 실제 출력 예시 (생성 시 해당 항목만 작성):
+  - interface 우선:
+      객체 형태는 `interface` 사용. 유니온·교차·조건부 타입은 `type` 사용.
+      ```typescript
+      interface User { id: string; name: string }          // ✅
+      type Status = 'active' | 'inactive';                 // ✅
+      type alias = interface 를 type으로 대체 금지          // ❌
+      ```
+  - type 우선:
+      모든 타입 정의에 `type alias` 사용. `interface` 사용 금지.
+      ```typescript
+      type User = { id: string; name: string }             // ✅
+      interface User { ... }                               // ❌
+      ```
+  - 혼용:
+      `interface`와 `type`을 상황에 따라 선택. 팀 내 일관성 유지.
+-->
+
+### 함수·메서드 선언 방식
+{FUNCTION_STYLE}
+<!--
+  선택지별 실제 출력 예시 (생성 시 해당 항목만 작성):
+  - 화살표 함수 우선:
+      모든 함수·메서드를 화살표 함수로 선언. `function` 키워드 사용 금지.
+      ```typescript
+      const getUser = async (id: string): Promise<User> => { ... }   // ✅
+      function getUser(id: string) { ... }                            // ❌
+      ```
+  - function 선언 우선:
+      모듈 최상위 함수는 `function` 키워드 사용. 콜백·인라인은 화살표 함수 허용.
+      ```typescript
+      function getUser(id: string): Promise<User> { ... }            // ✅
+      const getUser = async (id: string) => { ... }                  // ❌ (최상위)
+      array.map(item => item.id)                                     // ✅ (콜백)
+      ```
+  - 혼용:
+      모듈 최상위·네임드 함수는 `function`. 클래스 메서드·콜백은 화살표 함수.
+      ```typescript
+      // 최상위
+      function bootstrap() { ... }
+      // 클래스 메서드 (this 바인딩 보장)
+      class Controller { handle = async (req, res) => { ... } }
+      ```
+-->
 
 ### 번들링 / 실행
 - **번들링 필요 시 반드시 Vite** (`vite build`)
@@ -861,6 +954,7 @@ src/modules/{module}/
 한 번에 하나의 코드 스멜만 처리. 처리 후 반드시:
 ```bash
 pnpm tsc --noEmit
+pnpm eslint --fix {파일경로}
 pnpm vitest run {파일}
 ```
 실패 시 즉시 되돌리고 재시도.
@@ -868,7 +962,7 @@ pnpm vitest run {파일}
 ### VERIFY
 
 ```bash
-pnpm tsc --noEmit && pnpm vitest run
+pnpm tsc --noEmit && pnpm eslint --fix {파일경로} && pnpm vitest run
 ```
 
 ### 완료 보고
@@ -879,6 +973,6 @@ pnpm tsc --noEmit && pnpm vitest run
 처리한 코드 스멜:
 - {스멜}: {파일} — {적용 기법}
 
-최종 검증: tsc ✅  vitest {N}개 통과 ✅
+최종 검증: tsc ✅  eslint ✅  vitest {N}개 통과 ✅
 ```
 ```
