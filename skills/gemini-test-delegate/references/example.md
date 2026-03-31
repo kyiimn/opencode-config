@@ -53,7 +53,7 @@ export class UserService {
 ## Step 3에서 생성된 Gemini CLI 명령어
 
 ```bash
-gemini -p "다음 TypeScript 구현에 대한 Vitest 테스트 코드를 작성해주세요.
+gemini --yolo -m gemini-2.5-pro -p "다음 TypeScript 구현에 대한 Vitest 테스트 코드를 작성해주세요.
 
 ## 구현 정보
 
