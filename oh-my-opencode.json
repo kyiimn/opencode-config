@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
   "agents": {
     "prometheus": {
-      "model": "ollama-cloud/kimi-k2-thinking"
+      "model": "ollama-cloud/qwen3-coder-next"
     },
     "hephaestus": {
       "model": "ollama-cloud/qwen3-coder-next"
@@ -20,7 +20,7 @@
       "model": "ollama-cloud/gemini-3-flash-preview"
     },
     "metis": {
-      "model": "ollama-cloud/kimi-k2-thinking"
+      "model": "ollama-cloud/qwen3-coder-next"
     },
     "momus": {
       "model": "ollama-cloud/nemotron-3-super"
@@ -49,7 +49,7 @@
       "model": "ollama-cloud/glm-5"
     },
     "deep": {
-      "model": "ollama-cloud/kimi-k2-thinking"
+      "model": "ollama-cloud/qwen3-coder-next"
     },
     "artistry": {
       "model": "ollama-cloud/minimax-m2.7"

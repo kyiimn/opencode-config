@@ -14,9 +14,38 @@ subtask: true
 
 @.sisyphus/plans/
 
+## 컨텍스트 로드 (필수)
+
+모노레포 하위 패키지에서 실행 중인 경우, 현재 디렉터리의 `AGENTS.md` 외에
+**루트 `RULES.md`를 반드시 명시적으로 읽는다.**
+코딩 규칙은 루트 `RULES.md`에 정의되어 있으며, 서브 패키지의 `AGENTS.md`에는 포함되지 않는다.
+
+```
+@AGENTS.md
+@../../RULES.md  # 모노레포 루트 (패키지 깊이에 따라 경로 조정: ../RULES.md 또는 ../../RULES.md)
+```
+
+> 루트 `RULES.md` 없이 작업을 시작하는 것을 금지한다.
+> 경로를 찾을 수 없으면 `git rev-parse --show-toplevel` 로 루트를 확인한 뒤 로드한다.
+
 ---
 
 ## 실행 지침 (6단계 순서 엄수)
+
+> ⛔ **`sisyphus-junior` 직접 호출 금지**
+> `sisyphus-junior`는 카테고리 기반 병렬 위임을 내부적으로 조율하는 시스템 에이전트다.
+> 구현 작업을 위임할 때 `sisyphus-junior`를 직접 호출하지 말고, `category`만 지정하면 시스템이 자동으로 처리한다.
+>
+> ```
+> # ❌ 금지
+> delegate_task(subagent_type='sisyphus-junior', ...)
+>
+> # ✅ 올바른 방식 — category만 지정
+> delegate_task(category='deep', ...)
+> delegate_task(category='quick', ...)
+> ```
+>
+> `explore`, `librarian`, `oracle`, `metis`, `momus` 등 전문 역할 에이전트는 기존과 동일하게 직접 호출한다.
 
 ---
 
@@ -160,13 +189,8 @@ describe('{구현 대상}', () => {
 ask_user_input_v0(
   questions=[
     {
-      question: "⛔ [승인 필요] 아래 내용을 검토 후 승인해주세요.\n\n"
-               + "📋 시나리오: .opencode/test-scenarios/{파일명}.md\n"
-               + "🧪 테스트 파일: {테스트파일경로}\n"
-               + "🔍 Explore: {파일 수}개 파일 탐색 완료\n"
-               + "🌐 Librarian: {문서 수}개 문서/패턴 조사 완료\n\n"
-               + "구현을 시작할까요?",
-      options: ["승인합니다 — 구현을 시작하세요", "수정이 필요합니다 — 내용을 알려주세요"],
+      question: "시나리오 파일 .opencode/test-scenarios/{파일명}.md 과 테스트 파일 {테스트파일경로} 작성이 완료됐습니다. Explore {파일 수}개 파일, Librarian {문서 수}개 문서 탐색 완료. 구현을 시작할까요?",
+      options: ["승인합니다", "수정이 필요합니다"],
       type: "single_select"
     }
   ]
@@ -174,34 +198,6 @@ ask_user_input_v0(
 ```
 
 "수정이 필요합니다"를 선택하면 수정 내용을 반영하고 승인 게이트를 재실행한다.
-
-#### 3-B. Prisma 스키마 변경 감지 (해당 시)
-
-PHASE 1 Explore 결과에서 `prisma/schema.prisma` 변경이 필요하다고 판단되면,
-소스 구현 전에 `ask_user_input_v0`로 별도 승인을 요청한다.
-
-```
-ask_user_input_v0(
-  questions=[
-    {
-      question: "🗄️ Prisma 스키마 변경이 감지되었습니다.\n\n"
-               + "변경 내용: {변경할 모델/필드 요약}\n\n"
-               + "⚠️ db push는 개발 DB에 즉시 반영됩니다. 실행할까요?",
-      options: [
-        "승인합니다 — prisma db push 실행",
-        "건너뜁니다 — 스키마 변경 없이 진행"
-      ],
-      type: "single_select"
-    }
-  ]
-)
-```
-
-승인 시:
-```
-!npx prisma db push
-```
-실패 시 즉시 사용자에게 에러를 보고하고 중단한다.
 
 ---
 
@@ -335,7 +331,7 @@ delegate_task(
 
 ### ⬛ PHASE 6: 검증
 
-**정적 검사 → 타입 검사 → 테스트** 순서로 실행합니다.
+**정적 검사 → 타입 검사 → Prisma db push(해당 시) → 테스트** 순서로 실행합니다.
 
 ```bash
 # 1단계: 정적 검사
@@ -343,7 +339,35 @@ delegate_task(
 
 # 2단계: 타입 검사
 !npx tsc --noEmit 2>&1 | tail -20
+```
 
+#### 6-A. Prisma 스키마 변경 감지 (해당 시) — 테스트 직전 필수
+
+PHASE 4 구현 중 `prisma/schema.prisma` 가 신규 생성되거나 수정됐다면, 테스트 실행 전에 반드시
+`ask_user_input_v0`로 db push 승인을 요청한다. `.env` 파일은 구현 단계에서 생성되므로
+이 시점에 db push가 가능하다. 테스트보다 먼저 실행하지 않으면 DB 연결 오류로 테스트가 실패한다.
+
+```
+ask_user_input_v0(
+  questions=[
+    {
+      question: "prisma/schema.prisma 가 변경됐습니다. 변경 내용: {변경된 모델/필드 요약}. db push를 실행하면 개발 DB에 즉시 반영됩니다. 테스트 전에 실행할까요?",
+      options: ["승인합니다 — prisma db push 실행", "건너뜁니다 — 스키마 변경 없이 진행"],
+      type: "single_select"
+    }
+  ]
+)
+```
+
+승인 시:
+```bash
+!npx prisma db push
+```
+실패 시 즉시 사용자에게 에러를 보고하고 중단한다.
+
+#### 6-B. 시나리오 기반 테스트
+
+```bash
 # 3단계: 시나리오 기반 테스트 전체 실행
 !npm test 2>&1 | tail -40
 ```

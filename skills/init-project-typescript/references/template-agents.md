@@ -25,6 +25,10 @@
 이 파일은 `{PACKAGE_PATH}` 패키지에 특화된 내용만 기술한다.
 아래 항목은 루트에서 그대로 상속하며 이 파일에서 재정의하지 않는다.
 
+> **에이전트 필독**: `/start-work` 실행 시 이 파일과 함께 **루트 `/RULES.md`를 반드시 로드**한다.
+> 코딩 규칙 전체가 루트 `RULES.md`에 있으므로 이를 로드하지 않으면 규칙을 알 수 없다.
+> 경로 확인: `!git rev-parse --show-toplevel`
+
 | 상속 항목 | 출처 | 내용 |
 |-----------|------|------|
 | TypeScript strict 설정 | `/RULES.md#code-standards` | strict mode, any 금지, 명시적 반환 타입 등 |
@@ -228,16 +232,24 @@ export default [...baseConfig];
 2. **탐색은 항상 병렬 백그라운드로.** `run_in_background=True`가 기본값이다.
 3. **session_id를 재사용하라.** 구현 실패 시 새 에이전트를 만들지 말고 동일 session으로 재위임하라.
 4. **JSDoc은 구현과 동시에.** 구현 위임 프롬프트에 반드시 JSDoc 작성 지시를 포함하라.
+5. **`sisyphus-junior`를 직접 호출하지 않는다.** `sisyphus-junior`는 카테고리 기반 병렬 위임을 조율하는 시스템 에이전트로, 직접 호출이 금지되어 있다. 구현 작업 위임 시 `category`만 지정하면 시스템이 자동으로 처리한다. `explore`, `librarian`, `oracle`, `metis`, `momus` 등 전문 역할 에이전트는 기존과 동일하게 직접 호출한다.
+   ```
+   # ❌ 금지
+   delegate_task(subagent_type='sisyphus-junior', ...)
+
+   # ✅ 올바른 방식
+   delegate_task(category='quick', ...)
+   ```
 
 ### /start-work 6단계 흐름
 
 ```
 PHASE 1: 병렬 리서치     — explore(코드베이스) + librarian(문서/OSS) 동시 발사
 PHASE 2: 시나리오 작성   — TDD/SDV 시나리오 파일 + 테스트 파일(Red) 생성
-PHASE 3: 사용자 승인     — ask_user_input_v0 + Prisma 스키마 변경 시 db push 승인
+PHASE 3: 사용자 승인     — ask_user_input_v0로 구현 시작 승인
 PHASE 4: 병렬 구현       — delegate_task + JSDoc 동시 작성
 PHASE 5: GC              — 리팩터링 → 미사용 코드 제거 → 아키텍처 위반 점검
-PHASE 6: 검증            — lint → tsc → npm test → 시나리오 결과 반영
+PHASE 6: 검증            — lint → tsc → Prisma db push(해당 시, 테스트 직전) → npm test → 결과 반영
 ```
 ```
 
@@ -327,19 +339,34 @@ Loop 1~N 실패 요약 / 패턴 분석 / 추정 원인 / 권장 조치
 ```markdown
 ## FILE REFERENCES
 
-아래 파일을 **현재 태스크와 관련된 경우에만** Read 툴로 로드한다.
+### 모노레포 하위 패키지에서 작업 시 (필수)
+
+이 `AGENTS.md`는 패키지 전용 규칙만 기술한다. 코딩 규칙은 루트 `RULES.md`에 있으므로
+`/start-work` 실행 시 **루트 `RULES.md`를 반드시 먼저 로드**한다.
+
+```
+@AGENTS.md                  # 이 파일 (패키지 전용 규칙)
+@{루트경로}/RULES.md        # 루트 코딩 규칙 (필수)
+```
+
+경로를 모를 경우: `!git rev-parse --show-toplevel` 로 루트를 확인한다.
+루트 `RULES.md` 없이 작업을 시작하는 것을 금지한다.
+
+### 섹션별 로드 기준
+
+아래 파일을 **현재 태스크와 관련된 경우에만** 로드한다.
 `RULES.md` 전체를 한 번에 로드하지 않는다. 필요한 섹션 앵커만 지정한다.
 
 | 언제 읽는가 | 파일 및 섹션 |
 |-------------|-------------|
-| 코드 작성·수정 시 | `RULES.md#code-standards` |
-| JSDoc 작성 시 | `RULES.md#jsdoc` |
-| API 개발 시 | `RULES.md#api` |
-| Frontend 개발 시 | `RULES.md#frontend` |
-| CLI 개발 시 | `RULES.md#cli` |
-| 공유 라이브러리 개발 시 | `RULES.md#shared` |
-| 테스트 코드 작성 시 | `RULES.md#testing` |
-| 리팩터링 시 | `RULES.md#refactoring` |
+| 코드 작성·수정 시 | `{루트}/RULES.md#code-standards` |
+| JSDoc 작성 시 | `{루트}/RULES.md#jsdoc` |
+| API 개발 시 | `{루트}/RULES.md#api` |
+| Frontend 개발 시 | `{루트}/RULES.md#frontend` |
+| CLI 개발 시 | `{루트}/RULES.md#cli` |
+| 공유 라이브러리 개발 시 | `{루트}/RULES.md#shared` |
+| 테스트 코드 작성 시 | `{루트}/RULES.md#testing` |
+| 리팩터링 시 | `{루트}/RULES.md#refactoring` |
 | DB 스키마 확인 | `prisma/schema.prisma` |
 | 환경변수 확인 | `.env.example` |
 ```
