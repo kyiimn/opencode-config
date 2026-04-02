@@ -1,7 +1,7 @@
 ---
 description: "Prometheus 계획 수립 → TDD/SDV 워크플로우 - 병렬 리서치 → 시나리오 작성 → 사용자 승인 → 병렬 구현 → GC → 검증"
 agent: atlas
-subtask: true
+subtask: false
 ---
 
 # /start-work: $ARGUMENTS
