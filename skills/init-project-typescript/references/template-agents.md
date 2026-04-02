@@ -32,12 +32,12 @@
 | 타입 정의 방식 | `/RULES.md#code-standards` | interface 우선 / type 우선 / 혼용 |
 | 함수 선언 방식 | `/RULES.md#code-standards` | 화살표 함수 / function 선언 / 혼용 |
 | JSDoc 규칙 | `/RULES.md#jsdoc` | 필수 태그, 작성 예시, 금지 패턴 |
-| 테스트 작성 방식 | `/RULES.md#testing` | SDV 원칙, 직접 작성 / Gemini 위임 |
+| 테스트 작성 방식 | `/RULES.md#testing` | TDD/SDV 워크플로우, /start-work 시나리오 기반 |
 | 리팩터링 절차 | `/RULES.md#refactoring` | PREPARE → IDENTIFY → REFACTOR → VERIFY |
 | 번들링·실행 도구 | `/RULES.md#code-standards` | Vite 빌드, vite-node 실행, tsc는 타입 검사 전용 |
 | 자율 실행 / 승인 필요 목록 | `/AGENTS.md#safety` | 패키지 설치·삭제, git push, 파일 삭제 등 |
 | Git 컨벤션 | `/AGENTS.md#git` | 브랜치 명명, Conventional Commits, PR 전 검증 |
-| 에이전트 역할 분담 | `/AGENTS.md#orchestration` | Sisyphus·Hephaestus·Oracle·Librarian 역할 및 금지 사항 |
+| 에이전트 역할 분담 | `/AGENTS.md#workflow` | Sisyphus·Explore·Librarian·Oracle·category:deep/quick 역할 |
 | LIVING DOCUMENT 규칙 | `/AGENTS.md#living` | 규칙 추가 트리거·형식 |
 
 **패키지 역할:** {담당 책임 한 줄}
@@ -204,47 +204,118 @@ export default [...baseConfig];
 ```markdown
 ## AGENT WORKFLOW
 
-모든 기능 구현은 `/start-work` 명령으로 시작한다.
-`/start-work`는 아래 6단계를 순서대로 실행하며, 각 단계를 건너뛰는 것을 금지한다.
+모든 기능 구현은 `/start-work {작업 설명}` 명령으로 시작한다.
+**Sisyphus는 오케스트레이터다 — 직접 구현하지 말고 전문 에이전트에게 위임하라.**
 
-| 단계 | 에이전트 | 활동 |
-|------|----------|------|
-| Step 1: Spec | Prometheus | 사용자 요구사항을 **정형 명세(Spec)**로 변환 |
-| Step 2: Plan | Metis / Momus | 스펙을 만족하는지 확인할 검증 로직 설계 |
-| Step 3: Approval | Sisyphus | 구현 전 스펙 및 테스트 계획 **사용자 승인 요청** |
-| Step 4: TDD | Test Architect | 승인된 스펙 기반으로 **실패하는 테스트 코드** 작성 |
-| Step 5: Code | Hephaestus | 테스트를 통과하기 위한 **최소한의 기능 코드** 구현 |
-| Step 6: Verify | Oracle | 최종 코드가 초기 Spec과 일치하는지 최종 검증 |
+### 에이전트 역할
 
-### 에이전트 제약
+| 에이전트 | 역할 | 실행 방식 |
+|----------|------|-----------|
+| **Sisyphus** | 오케스트레이터 — 계획, 위임, 워크플로우 강제 | 주 에이전트 |
+| **Explore** | 코드베이스 탐색 (읽기 전용) | 백그라운드 병렬 |
+| **Librarian** | 웹/공식문서/OSS 탐색 (읽기 전용) | 백그라운드 병렬 |
+| **Oracle** | 아키텍처 자문 (읽기 전용) | 동기, 복잡 작업만 |
+| **category:deep** | 복잡 구현 위임 | 동기, 승인 후 |
+| **category:quick** | 단순 수정 위임 | 동기, 승인 후 |
 
-**Prometheus (Step 1)**
-> 목표: "모든 요구사항을 측정 가능한 스펙(Spec) 단위로 분절할 것."
-- Spec은 입력·출력·제약·경계 조건이 수치나 타입으로 명시된 단위여야 한다
-- "잘 동작한다", "빠르다" 같은 모호한 표현은 Spec으로 인정하지 않는다
-- 코드 생성·파일 수정·명령어 실행 절대 금지 — Spec 문서만 산출한다
+### 위임 원칙
 
-**Momus (Step 2)**
-> 비판 기준: "설계된 테스트가 스펙의 모든 케이스(Edge case 포함)를 커버하는가?"
-- Spec의 각 항목에 대해 happy path / edge case / error path 가 모두 설계됐는지 검토한다
-- 커버되지 않은 케이스가 있으면 Metis에게 보완을 요청하고 Step 3으로 넘어가지 않는다
+1. **Sisyphus는 직접 구현하지 않는다.** `quick` 수정조차 서브에이전트에게 위임하라.
+2. **탐색은 항상 병렬 백그라운드로.** `run_in_background=true`가 기본값이다.
+3. **탐색 결과를 기다리지 않는다.** 발사 후 즉시 다음 Phase로 진행하고, 시나리오 작성 시점에 결과를 통합한다.
+4. **session_id를 재사용하라.** 구현 실패 시 새 에이전트를 만들지 말고 동일 session으로 재위임하라.
 
-**Sisyphus (Step 3)**
-> 제약: "사용자의 `/approve`가 없으면 Hephaestus에게 쓰기(Write) 도구 권한을 부여하지 말 것."
-- 승인 요청은 반드시 `ask_user_input_v0` 도구로만 실행한다. 단순 텍스트 질문 금지.
-- `/approve` 또는 "승인합니다" 응답이 확인되기 전까지 Step 4 이후 진행을 차단한다
+### /start-work 워크플로우 (PHASE 0~5)
 
-### 검증 파이프라인 (Step 5 완료 후 자동 실행)
+**PHASE 0: 병렬 탐색 발사 (백그라운드 — 차단하지 말 것)**
 
-```bash
-pnpm tsc --noEmit              # 타입 에러 제거
-pnpm eslint --fix {파일경로}   # lint 자동 수정 후 잔여 에러 확인
-pnpm vitest run {파일}         # 단일 파일 테스트
-pnpm vitest run                # 전체 회귀 테스트
+`Explore`(코드베이스)와 `Librarian`(문서/OSS)을 동시에 백그라운드로 발사하고,
+결과를 기다리지 않고 PHASE 1로 즉시 진행한다.
+
+- Explore 수집 항목: 관련 파일·함수·클래스, 테스트 프레임워크 위치, 기존 모킹/픽스처 패턴, `.opencode/test-scenarios/` 기존 파일, 인터페이스 경계
+- Librarian 수집 항목: 최신 공식 API(버전 명시), OSS 유사 기능 테스트 패턴, 알려진 엣지 케이스/보안 이슈, TDD 권장 모킹 전략
+
+**PHASE 1: 아키텍처 자문 (복잡 작업만, 단순 작업은 생략)**
+
+아래 중 하나에 해당하면 `Oracle`에게 자문 요청:
+- 새로운 서비스/모듈 설계 필요
+- 보안·성능·동시성 트레이드오프 존재
+- 여러 시스템/패키지에 걸친 변경
+
+Oracle 반환 항목: 아키텍처 트레이드오프, 리스크 → Error Cases, 비기능 요구사항 → SDV 항목
+
+**PHASE 2: TDD/SDV 테스트 시나리오 작성**
+
+PHASE 0~1 결과를 통합하여 `.opencode/test-scenarios/{task-kebab-case}.md`를 생성한다.
+
+```markdown
+# 테스트 시나리오: {기능명}
+작성일: {오늘 날짜}
+탐색 출처:
+  - Explore: {발견한 주요 파일/패턴}
+  - Librarian: {참조한 문서/OSS 링크}
+  - Oracle: {아키텍처 자문 요약, 해당 시}
+승인 상태: ⏳ 승인 대기 중
+
+## Happy Path
+- [ ] SCENARIO: {정상 동작}
+  GIVEN: {전제}  WHEN: {동작}  THEN: {결과}
+
+## Edge Cases
+- [ ] SCENARIO: {엣지 케이스}
+  GIVEN: {전제}  WHEN: {동작}  THEN: {결과}
+
+## Error Cases
+- [ ] SCENARIO: {에러 케이스}
+  GIVEN: {전제}  WHEN: {동작}  THEN: {에러 처리 결과}
+
+## SDV 스펙 검증 항목
+- [ ] #REQ-{N}: {비기능 요구사항}
 ```
 
-vitest 실패 → Step 1(Spec)으로 복귀하여 명세 수정 후 Step 3(Approval) 재실행.
-루프 3회 초과 시 자동 중단 후 사용자 보고 (OBSERVABILITY 참조).
+**PHASE 3: 사용자 승인 요청 ⏸ — 코드 생성 금지**
+
+시나리오 파일 작성 완료 후 반드시 아래를 출력하고 멈춘다.
+**승인 전 코드 생성·파일 수정 절대 금지.**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[승인 필요] 구현 전 테스트 시나리오를 검토해주세요.
+
+📋 시나리오: .opencode/test-scenarios/{파일명}.md
+🔍 Explore:  {파일 수}개 파일 탐색 완료
+🌐 Librarian: {문서 수}개 문서/패턴 조사 완료
+🏛 Oracle:    {자문 완료 | 해당 없음}
+
+✅ 승인: '승인' 또는 'approve'
+✏️  수정: 변경할 내용을 알려주세요
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**PHASE 4: 구현 위임 (사용자 승인 후)**
+
+복잡도에 따라 `category:deep`(새 서비스·버그 추적) 또는 `category:quick`(단순 수정)으로 위임한다.
+구현 에이전트의 TDD 실행 순서:
+1. 시나리오 항목별 테스트 코드 작성 (Red — 실패 확인)
+2. 테스트를 통과하는 최소 구현 (Green)
+3. 리팩터링 후 전체 테스트 재실행 (Refactor)
+
+완료 기준: 모든 시나리오 항목 통과 / Lint 0 / 기존 테스트 회귀 없음
+
+**PHASE 5: 테스트 검증**
+
+```bash
+npm run lint            # 1단계: 정적 검사
+npx tsc --noEmit        # 2단계: 타입 검사
+npm test                # 3단계: 시나리오 기반 테스트 전체 실행
+```
+
+결과를 `.opencode/test-scenarios/{파일명}.md`에 반영:
+- 통과: `[ ]` → `[x PASS]`
+- 실패: `[ ]` → `[x FAIL: {원인}]`
+
+실패 항목이 있으면 PHASE 4를 재실행(같은 session_id 재사용).
+모든 항목 `[x PASS]`가 될 때까지 반복한다.
 ```
 
 ---
@@ -364,7 +435,6 @@ Loop 1~N 실패 요약 / 패턴 분석 / 추정 원인 / 권장 조치
 |------|------------|
 | AGENTS.md만 존재하는 빈 프로젝트를 **Express.js + DDD + API** 구조로 초기화할 때 | `express-api-starter` 스킬 |
 | DDD 아키텍처 기반 패키지의 AGENTS.md를 생성하거나 수정할 때 | `ddd-architecture` 스킬 |
-| 구현 완료 후 테스트 코드 작성 방식이 **Gemini CLI 위임**으로 설정된 경우 | `gemini-test-delegate` 스킬 |
 
 ### express-api-starter 스킬 트리거 조건
 - `AGENTS.md`(또는 `RULES.md`)만 존재하고 `src/` 또는 `apps/` 디렉터리가 없는 상태에서

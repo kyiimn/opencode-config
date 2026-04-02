@@ -123,44 +123,87 @@
 ```markdown
 ## JSDOC {#jsdoc}
 
-새로 작성하거나 수정한 **모든 함수·메서드·클래스·인터페이스**에 JSDoc을 반드시 작성한다.
-JSDoc 없이 코드를 완료로 보고하는 것을 금지한다.
+### 반드시 작성해야 하는 대상
+
+- 함수 / 메서드 (public, protected, private 불문)
+- 클래스 / 추상 클래스
+- 인터페이스 / 타입 별칭
+- 열거형(enum) 및 각 멤버
+- 모듈 진입점 (`index.ts` 등)
+- 복잡한 로직이 포함된 상수
+
+### 생략 가능한 대상
+
+- 단순 getter / setter (로직 없이 필드만 반환/대입)
+- 자명한 생성자 (파라미터를 그대로 필드에 할당만 하는 경우)
+- 프레임워크가 자동 생성하는 보일러플레이트 (React 컴포넌트 props 타입 등 이미 타입이 문서화된 경우)
 
 ### 필수 태그
 
-| 대상 | 필수 태그 |
-|------|-----------| 
-| 함수 / 메서드 | 첫 줄 요약, `@param`, `@returns` |
-| 비동기 함수 | 위 항목 + `@throws` |
-| 클래스 | 첫 줄 요약 |
-| 인터페이스 / Type | 첫 줄 요약, 각 프로퍼티 인라인 주석 |
-
-### 작성 예시
-
 ```typescript
 /**
- * 사용자 ID로 사용자를 조회한다.
+ * {무엇을 하는지 한 문장 — '~를 반환한다' / '~를 처리한다' 형식}
  *
- * @param id - 조회할 사용자의 UUID
- * @returns 사용자 엔티티. 존재하지 않으면 null
- * @throws {DatabaseError} DB 연결 실패 시
- */
-async getUserById(id: string): Promise<User | null> { ... }
-
-/**
- * 멤버십 등급에 따른 할인율을 계산한다.
+ * {필요한 경우 상세 설명. 알고리즘, 부수효과, 주의사항 등.}
  *
- * @param membership - 사용자 멤버십 등급
- * @param total - 원래 주문 금액 (0 이상)
- * @returns 적용 할인율 (0.0 ~ 1.0)
+ * @param {paramName} - {설명}
+ * @returns {반환값 설명. void이면 생략 가능}
+ * @throws {ErrorType} {발생 조건}
+ *
+ * @example
+ * const result = myFunction('foo');
+ * // result === 'bar'
  */
-function getDiscountRate(membership: Membership, total: number): number { ... }
 ```
 
+- `@param`, `@returns` — 타입은 TypeScript가 보유하므로 타입 표기 생략, 의미 설명만 작성
+- `@throws` — 의도적으로 예외를 던지는 경우 반드시 작성
+- `@example` — 사용법이 명확하지 않거나 엣지 케이스가 있는 함수에 작성
+- `@deprecated` — 더 이상 사용하지 않는 API에 반드시 작성 (대체 API 명시)
+
 ### 금지 패턴
-- `@param value` — 타입·설명 없이 이름만 적는 것 금지
-- `// 함수 설명` — 일반 주석으로 JSDoc 대체 금지
-- 자명한 getter도 생략 금지 (`getId()`, `getName()` 포함)
+
+```typescript
+// ❌ 코드를 그대로 반복하는 주석
+/**
+ * Gets the user.
+ * @param id - The id
+ * @returns The user
+ */
+function getUser(id: string): User { ... }
+
+// ✅ 의미를 설명하는 주석
+/**
+ * 주어진 ID로 사용자를 조회한다.
+ * DB에 존재하지 않으면 null을 반환하며 예외를 던지지 않는다.
+ *
+ * @param id - 조회할 사용자의 UUID
+ * @returns 사용자 객체, 미존재 시 null
+ */
+function getUser(id: string): User | null { ... }
+```
+
+### 생략 가능 예시
+
+```typescript
+class Counter {
+  private _count = 0;
+
+  // ✅ 단순 getter — JSDoc 생략 가능
+  get count(): number { return this._count; }
+
+  // ✅ 단순 setter — JSDoc 생략 가능
+  set count(value: number) { this._count = value; }
+
+  /**
+   * 카운터를 1 증가시키고 현재 값을 반환한다.
+   * count가 MAX_VALUE에 도달하면 0으로 초기화한다.
+   *
+   * @returns 증가 후의 카운터 값
+   */
+  increment(): number { ... }
+}
+```
 ```
 
 ---
@@ -285,65 +328,48 @@ src/modules/{module}/
 ```markdown
 ## TESTING {#testing}
 
-- **Vitest 필수** — Jest 금지
+모든 기능 구현은 `/start-work` 워크플로우를 통해 TDD로 진행된다.
+시나리오 없이 구현을 시작하지 않는다. 사용자 승인 없이 코드를 작성하지 않는다.
+
+### 시나리오 파일
+
+위치: `.opencode/test-scenarios/{task-kebab-case}.md`
+
+- 탐색 없이 시나리오를 작성하지 않는다 — Explore + Librarian 결과를 반드시 통합하라
+- 시나리오 수정 요청 시 파일을 업데이트하고 승인 상태를 `⏳`로 초기화한 뒤 재승인을 요청하라
+
+### 테스트 실행 순서 (두 단계 모두 필수)
+
+```bash
+# 1단계: 정적 검사
+npm run lint
+npx tsc --noEmit
+
+# 2단계: 시나리오 기반 테스트
+npm test
+```
+
+### 결과 반영
+
+구현 에이전트는 테스트 결과를 시나리오 파일에 반드시 업데이트한다:
+- `[ ]` → `[x PASS]` 통과
+- `[ ]` → `[x FAIL: {원인}]` 실패
+
+### 완료 기준
+
+- [ ] 모든 시나리오 항목 `[x PASS]`
+- [ ] Lint 경고 0개
+- [ ] 타입 에러 0개
+- [ ] 기존 테스트 회귀 없음
+- [ ] 신규/수정된 함수·클래스·인터페이스에 JSDoc 작성 완료 (`RULES.md#jsdoc` 참조)
+
+### 테스트 프레임워크
+
+- **Vitest 권장** (Jest도 허용, 프로젝트 기존 설정 따름)
 - 테스트 파일: 소스와 같은 디렉터리 (`{name}.test.ts`) 또는 `tests/`
-- 모킹: `vi.mock()`, `vi.fn()`, `vi.spyOn()`
-- 커버리지: `@vitest/coverage-v8` (`vitest run --coverage`)
-- 커버리지 목표: 핵심 비즈니스 로직 80%+
+- 모킹: `vi.mock()` / `vi.fn()` / `vi.spyOn()`
+- 커버리지: `@vitest/coverage-v8` — 핵심 비즈니스 로직 80%+
 - 구조: `describe > it` (given/when/then 주석 권장)
-- 설정: `vitest.config.ts` (Vite 설정과 공유 가능 — `defineConfig` 재사용)
-
-### TDD / SDV 원칙
-
-`/start-work`의 Step 2(Metis/Momus)에서 테스트 계획이, Step 4(Test Architect)에서 실패하는
-테스트 코드가 먼저 작성된다. Hephaestus(Step 5)는 이 테스트를 통과시키는 최소한의 코드만 구현한다.
-
-**SDV 불변 원칙**
-- 승인된 Spec(Step 1)에 없는 테스트 케이스 추가 금지
-- 구현 코드를 보고 테스트를 역산하는 것을 금지한다 — 승인된 Spec이 유일한 기준이다
-- vitest 실패 = 구현이 승인된 Spec을 벗어난 것 → Step 1으로 복귀 후 Step 3(Approval) 재실행
-- 승인된 시나리오와 테스트 케이스는 1:1로 추적 가능해야 한다 (시나리오 번호 주석)
-
-### 테스트 작성 기준
-
-- 테스트명: `{대상}_{조건}_{기대결과}`
-  - 예: `getUser_존재하지않는id_NotFoundError반환`
-- 시나리오 번호를 주석으로 남겨 Spec과 추적 가능하게 한다
-  ```typescript
-  // Scenario #1 — happy path
-  it('getUser_유효한id_사용자반환', async () => { ... })
-
-  // Scenario #3 — error path
-  it('getUser_존재하지않는id_NotFoundError반환', async () => { ... })
-  ```
-
-### 테스트 코드 작성 방식
-
-<!-- Q-TE1 선택 결과에 따라 아래 두 섹션 중 하나만 포함한다 -->
-
-<!-- [Q-TE1 = 에이전트 직접 작성] 아래 섹션 포함 -->
-#### 직접 작성 모드
-Test Architect(Step 4)가 승인된 Spec 기반으로 실패하는 테스트 코드를 작성한다.
-Hephaestus(Step 5)는 이 테스트를 통과시키는 코드를 구현하고, `pnpm vitest run {파일}`로 검증한다.
-<!-- [/Q-TE1 = 에이전트 직접 작성] -->
-
-<!-- [Q-TE1 = Gemini CLI 위임] 아래 섹션 포함 -->
-#### Gemini CLI 위임 모드
-테스트 코드 작성은 `gemini-test-delegate` 스킬에 위임한다.
-
-**위임 트리거 조건**: `/start-work` Step 4 진입 시점
-
-**위임 절차**:
-1. `gemini-test-delegate` 스킬을 로드한다
-2. 승인된 Spec(시나리오 포함) + 구현 파일 경로를 입력으로 제공한다
-3. 스킬이 생성한 `gemini -p "..."` 명령어를 실행한다
-4. 생성된 테스트 파일을 스킬 체크리스트로 검토한다
-5. 시나리오 번호와 테스트 케이스가 1:1로 대응되는지 확인한다
-6. `pnpm vitest run {테스트_파일_경로}` 로 실패를 확인 후 Step 5(Code)로 진행한다
-
-**Gemini CLI 미설치 시**: `npm install -g @google/gemini-cli` 후 재시도.
-설치 불가한 환경이면 즉시 사용자에게 보고하고 직접 작성 모드로 전환한다.
-<!-- [/Q-TE1 = Gemini CLI 위임] -->
 ```
 
 ---
