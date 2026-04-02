@@ -2,7 +2,10 @@
 name: init-project-typescript
 description: >
   opencode + oh-my-opencode 환경 전용 스킬입니다.
-  AGENTS.md / RULES.md 인터뷰 기반 생성, /start-work TDD/SDV 워크플로우 설정
+  이 스킬의 기본 동작은 현재 프로젝트(신규·기존·모노레포 서브프로젝트 모두)에
+  AGENTS.md와 RULES.md를 생성하는 것입니다.
+  별다른 요청이 없어도 스킬이 호출되면 즉시 Step 1(스코프 확인)부터 시작합니다.
+  AGENTS.md / RULES.md 생성 외에도 /start-work TDD/SDV 워크플로우 설정
   (Sisyphus 오케스트레이터 + Explore/Librarian 병렬 탐색 + Oracle 아키텍처 자문),
   그리고 그린필드 프로젝트 초기화(사용자 승인 후)까지 한 번에 처리합니다.
   "프로젝트 시작", "agents.md 만들어줘", "opencode 설정", "프로젝트 규칙 파일 생성",
@@ -12,7 +15,11 @@ description: >
 
 # init-project-typescript
 
-opencode + oh-my-opencode 환경에서 **AGENTS.md 작성 → /start-work TDD/SDV 워크플로우 수립 → 그린필드 초기화**를
+> **기본 동작**: 이 스킬이 호출되면 별도 지시 없이 **즉시 Step 1(스코프 확인)부터 시작**하여
+> 현재 프로젝트에 `AGENTS.md`와 `RULES.md`를 생성한다.
+> 신규 프로젝트, 기존 프로젝트, 모노레포 서브프로젝트 모두 동일하다.
+
+opencode + oh-my-opencode 환경에서 **AGENTS.md / RULES.md 생성 → /start-work TDD/SDV 워크플로우 수립 → 그린필드 초기화**를
 한 흐름으로 처리하는 스킬입니다. **세 가지 모드**를 지원합니다.
 
 | 모드 | 흐름 |
@@ -46,7 +53,7 @@ oh-my-opencode의 Sisyphus 오케스트레이터와 전문 서브에이전트들
 | **category:quick** | 단순 수정·lint 정리 |
 | **category:visual-engineering** | UI/UX·컴포넌트 구현 |
 
-> **6단계 흐름**: PHASE 1(병렬 리서치) → PHASE 2(시나리오+테스트파일) → PHASE 3(승인+Prisma) → PHASE 4(구현+JSDoc) → PHASE 5(GC) → PHASE 6(검증)
+> **7단계 흐름**: PHASE 0(Prometheus 계획) → PHASE 1(병렬 리서치) → PHASE 2(시나리오+테스트파일) → PHASE 3(승인) → PHASE 4(구현+JSDoc) → PHASE 5(GC) → PHASE 6(검증)
 
 ### 파일 구조
 
@@ -63,21 +70,19 @@ RULES.md                     # 코딩 규칙 (본 스킬이 생성)
 
 ---
 
-## Step 1: 스코프 확인 (1차 질문)
+## Step 1: 스코프 확인
 
-`ask_user_input_v0` 도구로 **두 가지를 동시에** 확인합니다.
+`ask_user_input_v0` 도구로 아래 3개 옵션 중 하나를 선택받는다.
 
 ```
-Q1. 어떤 AGENTS.md를 생성할까요?
-  - 루트(프로젝트 전체) AGENTS.md
-  - 패키지/앱 단위 AGENTS.md (모노레포의 apps/* 또는 packages/*)
-
-Q2. (Q1에서 "루트"를 선택한 경우만) 프로젝트 유형은 무엇인가요?
-  - 모노레포 (pnpm workspaces / apps·packages 구조)
-  - 싱글 프로젝트 (단일 패키지)
+Q. 어떤 AGENTS.md를 생성할까요?
+  - 모노레포 루트 AGENTS.md      → Step 1.5A로 이동 (소스코드 유무 자동 판별)
+  - 싱글 프로젝트 루트 AGENTS.md → Step 1.5B로 이동
+  - 패키지/앱 단위 AGENTS.md     → Step 1.5C로 이동 (모노레포의 apps/* 또는 packages/*)
 ```
 
-Q1에서 **패키지/앱 단위**를 선택한 경우 Q2는 묻지 않고 바로 Step 1.5C로 이동한다.
+선택 결과에 따라 해당 Step으로 즉시 이동한다.
+"모노레포 루트"를 선택한 경우 소스코드 존재 여부는 Step 1.5A에서 자동으로 판별한다.
 
 ---
 
@@ -216,8 +221,20 @@ Q-T2. 함수·메서드 선언 방식
 
 `./` 전체 (최대 2 depth), `./src/`
 
-스캔으로 파악된 항목은 사용자에게 묻지 않고 그대로 사용한다.
-스캔 완료 후 Step 2A(보완 인터뷰)로 이동한다.
+스캔 항목과 추론 방법은 Step 1.5C의 **스캔 항목과 추론 방법**을 동일하게 적용한다.
+
+스캔이 끝나면 Step 1.5C의 **스캔 결과 정리** 형식으로 결과를 제시하고
+`ask_user_input_v0` 승인 게이트를 실행한다.
+
+```
+Q. 위 스캔 결과가 맞나요?
+  - 맞습니다 — 이대로 진행합니다
+  - 수정이 필요합니다 — 잘못된 항목을 알려주세요
+```
+
+**승인 또는 수정 확정 전에 다음 단계로 진행하는 것을 금지한다.**
+스캔으로 확정된 항목은 Step 2A 인터뷰에서 다시 묻지 않는다.
+스캔 확인 후 Step 2A(보완 인터뷰)로 이동한다.
 
 ---
 
@@ -519,7 +536,7 @@ Q2. 패키지 종류 (스캔으로 미확정 시에만)
 
 ### 4-2. 계층 목록 업데이트
 
-루트 AGENTS.md의 `## AGENT ORCHESTRATION` 섹션 안
+루트 AGENTS.md의 `## AGENT WORKFLOW` 섹션 안
 `### AGENTS.md 계층 구조` 블록에 새 패키지 경로를 추가한다.
 
 **추가 형식**

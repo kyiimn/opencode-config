@@ -19,8 +19,5 @@
     "document-writer": {
       "prompt_append": "\n문서 작성 시 반드시 준수할 것:\n1. JSDoc: RULES.md#jsdoc 기준 — 반드시 작성 대상 vs 생략 가능 대상 구분\n2. @param은 타입 생략, 의미 설명만 작성 (TypeScript가 타입 보유)\n3. 코드를 그대로 반복하는 주석 금지 — 의미와 의도를 설명할 것\n4. @deprecated API는 반드시 대체 API를 명시할 것\n"
     }
-  },
-  "experimental": {
-    "auto_resume": true
   }
 }

@@ -241,9 +241,10 @@ export default [...baseConfig];
    delegate_task(category='quick', ...)
    ```
 
-### /start-work 6단계 흐름
+### /start-work 7단계 흐름
 
 ```
+PHASE 0: Prometheus 계획  — 작업 계획 수립 + 사용자 승인 (PHASE 1 진입 전 필수)
 PHASE 1: 병렬 리서치     — explore(코드베이스) + librarian(문서/OSS) 동시 발사
 PHASE 2: 시나리오 작성   — TDD/SDV 시나리오 파일 + 테스트 파일(Red) 생성
 PHASE 3: 사용자 승인     — ask_user_input_v0로 구현 시작 승인
@@ -251,6 +252,14 @@ PHASE 4: 병렬 구현       — delegate_task + JSDoc 동시 작성
 PHASE 5: GC              — 리팩터링 → 미사용 코드 제거 → 아키텍처 위반 점검
 PHASE 6: 검증            — lint → tsc → Prisma db push(해당 시, 테스트 직전) → npm test → 결과 반영
 ```
+
+### AGENTS.md 계층 구조 (모노레포)
+
+새 패키지에 AGENTS.md가 추가될 때마다 이 목록을 업데이트한다.
+
+- `/AGENTS.md` — 프로젝트 전체 규칙 (이 파일)
+<!-- 패키지 AGENTS.md 추가 시 아래에 항목을 추가하세요 -->
+<!-- 예: - `/apps/api/AGENTS.md` — REST API 서버 (DDD 아키텍처) -->
 ```
 
 ---
