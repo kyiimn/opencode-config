@@ -205,6 +205,8 @@ export default [...baseConfig];
 ## AGENT WORKFLOW
 
 모든 기능 구현은 `/start-work {작업 설명}` 명령으로 시작한다.
+워크플로우 상세 절차는 `.opencode/commands/start-work.md` 에 정의되어 있다.
+
 **Sisyphus는 오케스트레이터다 — 직접 구현하지 말고 전문 에이전트에게 위임하라.**
 
 ### 에이전트 역할
@@ -215,107 +217,28 @@ export default [...baseConfig];
 | **Explore** | 코드베이스 탐색 (읽기 전용) | 백그라운드 병렬 |
 | **Librarian** | 웹/공식문서/OSS 탐색 (읽기 전용) | 백그라운드 병렬 |
 | **Oracle** | 아키텍처 자문 (읽기 전용) | 동기, 복잡 작업만 |
-| **category:deep** | 복잡 구현 위임 | 동기, 승인 후 |
-| **category:quick** | 단순 수정 위임 | 동기, 승인 후 |
+| **category:deep** | 복잡 구현·리팩터링·아키텍처 점검 | 동기, 승인 후 |
+| **category:quick** | 단순 수정·lint 정리 | 동기, 승인 후 |
+| **category:visual-engineering** | UI/UX·컴포넌트 구현 | 동기, 승인 후 |
+| **category:ultrabrain** | 고난도 아키텍처 설계 | 동기, 필요 시 |
 
 ### 위임 원칙
 
 1. **Sisyphus는 직접 구현하지 않는다.** `quick` 수정조차 서브에이전트에게 위임하라.
-2. **탐색은 항상 병렬 백그라운드로.** `run_in_background=true`가 기본값이다.
-3. **탐색 결과를 기다리지 않는다.** 발사 후 즉시 다음 Phase로 진행하고, 시나리오 작성 시점에 결과를 통합한다.
-4. **session_id를 재사용하라.** 구현 실패 시 새 에이전트를 만들지 말고 동일 session으로 재위임하라.
+2. **탐색은 항상 병렬 백그라운드로.** `run_in_background=True`가 기본값이다.
+3. **session_id를 재사용하라.** 구현 실패 시 새 에이전트를 만들지 말고 동일 session으로 재위임하라.
+4. **JSDoc은 구현과 동시에.** 구현 위임 프롬프트에 반드시 JSDoc 작성 지시를 포함하라.
 
-### /start-work 워크플로우 (PHASE 0~5)
-
-**PHASE 0: 병렬 탐색 발사 (백그라운드 — 차단하지 말 것)**
-
-`Explore`(코드베이스)와 `Librarian`(문서/OSS)을 동시에 백그라운드로 발사하고,
-결과를 기다리지 않고 PHASE 1로 즉시 진행한다.
-
-- Explore 수집 항목: 관련 파일·함수·클래스, 테스트 프레임워크 위치, 기존 모킹/픽스처 패턴, `.opencode/test-scenarios/` 기존 파일, 인터페이스 경계
-- Librarian 수집 항목: 최신 공식 API(버전 명시), OSS 유사 기능 테스트 패턴, 알려진 엣지 케이스/보안 이슈, TDD 권장 모킹 전략
-
-**PHASE 1: 아키텍처 자문 (복잡 작업만, 단순 작업은 생략)**
-
-아래 중 하나에 해당하면 `Oracle`에게 자문 요청:
-- 새로운 서비스/모듈 설계 필요
-- 보안·성능·동시성 트레이드오프 존재
-- 여러 시스템/패키지에 걸친 변경
-
-Oracle 반환 항목: 아키텍처 트레이드오프, 리스크 → Error Cases, 비기능 요구사항 → SDV 항목
-
-**PHASE 2: TDD/SDV 테스트 시나리오 작성**
-
-PHASE 0~1 결과를 통합하여 `.opencode/test-scenarios/{task-kebab-case}.md`를 생성한다.
-
-```markdown
-# 테스트 시나리오: {기능명}
-작성일: {오늘 날짜}
-탐색 출처:
-  - Explore: {발견한 주요 파일/패턴}
-  - Librarian: {참조한 문서/OSS 링크}
-  - Oracle: {아키텍처 자문 요약, 해당 시}
-승인 상태: ⏳ 승인 대기 중
-
-## Happy Path
-- [ ] SCENARIO: {정상 동작}
-  GIVEN: {전제}  WHEN: {동작}  THEN: {결과}
-
-## Edge Cases
-- [ ] SCENARIO: {엣지 케이스}
-  GIVEN: {전제}  WHEN: {동작}  THEN: {결과}
-
-## Error Cases
-- [ ] SCENARIO: {에러 케이스}
-  GIVEN: {전제}  WHEN: {동작}  THEN: {에러 처리 결과}
-
-## SDV 스펙 검증 항목
-- [ ] #REQ-{N}: {비기능 요구사항}
-```
-
-**PHASE 3: 사용자 승인 요청 ⏸ — 코드 생성 금지**
-
-시나리오 파일 작성 완료 후 반드시 아래를 출력하고 멈춘다.
-**승인 전 코드 생성·파일 수정 절대 금지.**
+### /start-work 6단계 흐름
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-[승인 필요] 구현 전 테스트 시나리오를 검토해주세요.
-
-📋 시나리오: .opencode/test-scenarios/{파일명}.md
-🔍 Explore:  {파일 수}개 파일 탐색 완료
-🌐 Librarian: {문서 수}개 문서/패턴 조사 완료
-🏛 Oracle:    {자문 완료 | 해당 없음}
-
-✅ 승인: '승인' 또는 'approve'
-✏️  수정: 변경할 내용을 알려주세요
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 1: 병렬 리서치     — explore(코드베이스) + librarian(문서/OSS) 동시 발사
+PHASE 2: 시나리오 작성   — TDD/SDV 시나리오 파일 + 테스트 파일(Red) 생성
+PHASE 3: 사용자 승인     — ask_user_input_v0 + Prisma 스키마 변경 시 db push 승인
+PHASE 4: 병렬 구현       — delegate_task + JSDoc 동시 작성
+PHASE 5: GC              — 리팩터링 → 미사용 코드 제거 → 아키텍처 위반 점검
+PHASE 6: 검증            — lint → tsc → npm test → 시나리오 결과 반영
 ```
-
-**PHASE 4: 구현 위임 (사용자 승인 후)**
-
-복잡도에 따라 `category:deep`(새 서비스·버그 추적) 또는 `category:quick`(단순 수정)으로 위임한다.
-구현 에이전트의 TDD 실행 순서:
-1. 시나리오 항목별 테스트 코드 작성 (Red — 실패 확인)
-2. 테스트를 통과하는 최소 구현 (Green)
-3. 리팩터링 후 전체 테스트 재실행 (Refactor)
-
-완료 기준: 모든 시나리오 항목 통과 / Lint 0 / 기존 테스트 회귀 없음
-
-**PHASE 5: 테스트 검증**
-
-```bash
-npm run lint            # 1단계: 정적 검사
-npx tsc --noEmit        # 2단계: 타입 검사
-npm test                # 3단계: 시나리오 기반 테스트 전체 실행
-```
-
-결과를 `.opencode/test-scenarios/{파일명}.md`에 반영:
-- 통과: `[ ]` → `[x PASS]`
-- 실패: `[ ]` → `[x FAIL: {원인}]`
-
-실패 항목이 있으면 PHASE 4를 재실행(같은 session_id 재사용).
-모든 항목 `[x PASS]`가 될 때까지 반복한다.
 ```
 
 ---

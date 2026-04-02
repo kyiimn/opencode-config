@@ -8,19 +8,13 @@
       "model": "ollama-cloud/qwen3-coder-next"
     },
     "oracle": {
-      "enabled": true,
-      "model": "ollama-cloud/nemotron-3-super",
-      "prompt_append": "\n자문 결과를 테스트 시나리오 작성에 활용할 수 있는 형식으로 제공하라:\n1. 식별된 아키텍처 리스크 → 시나리오의 Error Cases 항목으로 제안\n2. 성능/보안 요구사항 → 시나리오의 SDV 검증 항목으로 제안\n3. 트레이드오프 분석 결과를 시나리오 파일 상단 주석으로 포함 제안\n"
+      "model": "ollama-cloud/nemotron-3-super"
     },
     "librarian": {
-      "enabled": true,
-      "model": "ollama-cloud/kimi-k2.5",
-      "prompt_append": "\n탐색 결과에 반드시 포함할 것:\n1. 사용 중인 라이브러리의 최신 테스트 API (공식 문서)\n2. GitHub OSS에서 유사 기능의 테스트 코드 패턴\n3. 해당 기능 영역의 알려진 엣지 케이스 (Stack Overflow, 이슈 트래커 등)\n4. TDD/SDV 맥락에서 권장되는 모킹/픽스처 패턴\n결과는 Sisyphus가 시나리오의 Edge Cases와 SDV 항목 작성에 활용할 수 있게 반환하라.\n"
+      "model": "ollama-cloud/kimi-k2.5"
     },
     "explore": {
-      "enabled": true,
-      "model": "ollama-cloud/minimax-m2.7",
-      "prompt_append": "\n탐색 결과에 반드시 포함할 것:\n1. .opencode/test-scenarios/ 디렉토리 내 기존 시나리오 파일\n2. 기존 테스트 파일의 경로와 사용 프레임워크 (Jest/Vitest/pytest 등)\n3. 관련 코드의 인터페이스 시그니처 (입출력 타입)\n4. 프로젝트에서 사용 중인 모킹 패턴\n결과는 Sisyphus가 시나리오 작성에 바로 활용할 수 있는 형식으로 반환하라.\n"
+      "model": "ollama-cloud/minimax-m2.7"
     },
     "multimodal-looker": {
       "model": "ollama-cloud/gemini-3-flash-preview"

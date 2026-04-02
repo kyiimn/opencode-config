@@ -328,32 +328,31 @@ src/modules/{module}/
 ```markdown
 ## TESTING {#testing}
 
-모든 기능 구현은 `/start-work` 워크플로우를 통해 TDD로 진행된다.
-시나리오 없이 구현을 시작하지 않는다. 사용자 승인 없이 코드를 작성하지 않는다.
+모든 기능 구현은 `/start-work` 명령으로 시작한다.
+구현 전 테스트 파일을 먼저 생성하고(Red), 구현 후 통과시키는(Green) TDD 사이클을 따른다.
+상세 워크플로우: `.opencode/commands/start-work.md`
+
+### 테스트 파일 규칙
+
+- 위치: 소스 파일과 같은 디렉터리 (`{name}.test.ts`)
+- 시나리오 1건 = 테스트 케이스 1건 (1:1 추적)
+- 프레임워크: **Vitest 권장** (기존 프로젝트 설정 따름)
+- 모킹: `vi.mock()` / `vi.fn()` / `vi.spyOn()`
+- 커버리지: `@vitest/coverage-v8` — 핵심 비즈니스 로직 80%+
+- 구조: `describe > it` (given/when/then 주석 권장)
+- 테스트명: `{대상}_{조건}_{기대결과}`
 
 ### 시나리오 파일
 
 위치: `.opencode/test-scenarios/{task-kebab-case}.md`
 
-- 탐색 없이 시나리오를 작성하지 않는다 — Explore + Librarian 결과를 반드시 통합하라
-- 시나리오 수정 요청 시 파일을 업데이트하고 승인 상태를 `⏳`로 초기화한 뒤 재승인을 요청하라
-
-### 테스트 실행 순서 (두 단계 모두 필수)
+### 실행 순서
 
 ```bash
-# 1단계: 정적 검사
-npm run lint
-npx tsc --noEmit
-
-# 2단계: 시나리오 기반 테스트
-npm test
+npm run lint        # 정적 검사
+npx tsc --noEmit    # 타입 검사
+npm test            # 전체 테스트
 ```
-
-### 결과 반영
-
-구현 에이전트는 테스트 결과를 시나리오 파일에 반드시 업데이트한다:
-- `[ ]` → `[x PASS]` 통과
-- `[ ]` → `[x FAIL: {원인}]` 실패
 
 ### 완료 기준
 
@@ -362,14 +361,6 @@ npm test
 - [ ] 타입 에러 0개
 - [ ] 기존 테스트 회귀 없음
 - [ ] 신규/수정된 함수·클래스·인터페이스에 JSDoc 작성 완료 (`RULES.md#jsdoc` 참조)
-
-### 테스트 프레임워크
-
-- **Vitest 권장** (Jest도 허용, 프로젝트 기존 설정 따름)
-- 테스트 파일: 소스와 같은 디렉터리 (`{name}.test.ts`) 또는 `tests/`
-- 모킹: `vi.mock()` / `vi.fn()` / `vi.spyOn()`
-- 커버리지: `@vitest/coverage-v8` — 핵심 비즈니스 로직 80%+
-- 구조: `describe > it` (given/when/then 주석 권장)
 ```
 
 ---

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "hephaestus": {
+      "prompt_append": "\n구현 완료 전 반드시 확인할 것:\n1. 신규·수정한 모든 함수/메서드/클래스/인터페이스에 JSDoc 작성 (RULES.md#jsdoc 기준)\n2. @param, @returns, @throws 필수. 복잡한 로직은 @example 포함.\n3. JSDoc 없이 구현 완료를 보고하는 것을 금지한다.\n"
+    },
+    "oracle": {
+      "enabled": true,
+      "prompt_append": "\n자문 결과를 테스트 시나리오 작성에 활용할 수 있는 형식으로 제공하라:\n1. 식별된 아키텍처 리스크 → 시나리오의 Error Cases 항목으로 제안\n2. 성능/보안 요구사항 → 시나리오의 SDV 검증 항목으로 제안\n3. 트레이드오프 분석 결과를 시나리오 파일 상단 주석으로 포함 제안\n"
+    },
+    "librarian": {
+      "enabled": true,
+      "prompt_append": "\n탐색 결과에 반드시 포함할 것:\n1. 사용 중인 라이브러리의 최신 테스트 API (공식 문서)\n2. GitHub OSS에서 유사 기능의 테스트 코드 패턴\n3. 해당 기능 영역의 알려진 엣지 케이스 (Stack Overflow, 이슈 트래커 등)\n4. TDD/SDV 맥락에서 권장되는 모킹/픽스처 패턴\n결과는 Sisyphus가 시나리오의 Edge Cases와 SDV 항목 작성에 활용할 수 있게 반환하라.\n"
+    },
+    "explore": {
+      "enabled": true,
+      "prompt_append": "\n탐색 결과에 반드시 포함할 것:\n1. .opencode/test-scenarios/ 디렉토리 내 기존 시나리오 파일\n2. 기존 테스트 파일의 경로와 사용 프레임워크 (Jest/Vitest 등)\n3. 관련 코드의 인터페이스 시그니처 (입출력 타입)\n4. 프로젝트에서 사용 중인 모킹 패턴\n5. prisma/schema.prisma 변경 필요 여부\n결과는 Sisyphus가 시나리오 작성에 바로 활용할 수 있는 형식으로 반환하라.\n"
+    },
+    "document-writer": {
+      "prompt_append": "\n문서 작성 시 반드시 준수할 것:\n1. JSDoc: RULES.md#jsdoc 기준 — 반드시 작성 대상 vs 생략 가능 대상 구분\n2. @param은 타입 생략, 의미 설명만 작성 (TypeScript가 타입 보유)\n3. 코드를 그대로 반복하는 주석 금지 — 의미와 의도를 설명할 것\n4. @deprecated API는 반드시 대체 API를 명시할 것\n"
+    }
+  },
+  "experimental": {
+    "auto_resume": true
+  }
+}

@@ -33,7 +33,8 @@ oh-my-opencode의 Sisyphus 오케스트레이터와 전문 서브에이전트들
 
 ### /start-work 워크플로우 (TDD + SDV)
 
-생성되는 AGENTS.md에는 `/start-work` 명령 기반 TDD/SDV 워크플로우가 명시됩니다.
+생성되는 AGENTS.md에는 `/start-work` 명령의 에이전트 역할 및 위임 원칙이 명시됩니다.
+실제 워크플로우 절차는 `.opencode/commands/start-work.md`에 정의됩니다.
 
 | 에이전트 | 역할 |
 |----------|------|
@@ -41,18 +42,22 @@ oh-my-opencode의 Sisyphus 오케스트레이터와 전문 서브에이전트들
 | **Explore** | 코드베이스 탐색 (백그라운드 병렬) |
 | **Librarian** | 웹/공식문서/OSS 탐색 (백그라운드 병렬) |
 | **Oracle** | 아키텍처 자문 (복잡 작업만, 동기 실행) |
-| **category:deep** | 복잡 기능 구현 위임 (승인 후) |
-| **category:quick** | 단순 수정 위임 (승인 후) |
+| **category:deep** | 복잡 구현·리팩터링·아키텍처 점검 |
+| **category:quick** | 단순 수정·lint 정리 |
+| **category:visual-engineering** | UI/UX·컴포넌트 구현 |
 
-> **표준 흐름**: `/start-work` → PHASE 0(병렬 탐색) → PHASE 2(시나리오 작성) → PHASE 3(승인) → PHASE 4(구현 위임) → PHASE 5(검증)
+> **6단계 흐름**: PHASE 1(병렬 리서치) → PHASE 2(시나리오+테스트파일) → PHASE 3(승인+Prisma) → PHASE 4(구현+JSDoc) → PHASE 5(GC) → PHASE 6(검증)
 
 ### 파일 구조
 
 ```
 .opencode/
+  oh-my-opencode.json        # 에이전트 모델 설정
+  commands/
+    start-work.md            # /start-work 워크플로우 정의 (PHASE 1~6)
   test-scenarios/
     {task-name}.md           # 태스크별 TDD/SDV 시나리오 파일
-AGENTS.md                    # 에이전트 지침 (본 스킬이 생성)
+AGENTS.md                    # 에이전트 역할 지침 (본 스킬이 생성)
 RULES.md                     # 코딩 규칙 (본 스킬이 생성)
 ```
 
@@ -474,12 +479,17 @@ Q2. 패키지 종류 (스캔으로 미확정 시에만)
 
 생성한 파일을 **최종 위치에 바로 저장**한다. 중간 경로를 거치지 않는다.
 
-**루트 스코프**: 두 파일 모두 저장
+**루트 스코프**: 아래 파일 모두 저장
 - `./AGENTS.md`
 - `./RULES.md`
+- `./.opencode/commands/start-work.md` ← `references/start-work.md` 복사
+- `./.opencode/oh-my-opencode.json` ← `references/oh-my-opencode.json` 복사 (없는 경우만)
 
 **패키지 스코프**: 패키지 AGENTS.md만 저장
 - `{패키지 경로}/AGENTS.md`
+
+> `.opencode/oh-my-opencode.json` 이 이미 존재하면 덮어쓰지 않는다.
+> `.opencode/commands/start-work.md` 는 항상 최신 버전으로 덮어쓴다.
 
 ### 파일 작성 도구 제약
 
