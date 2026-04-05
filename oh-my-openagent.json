@@ -1,0 +1,78 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "prometheus": {
+      "model": "ollama-cloud/gemma4:31b-cloud",
+      "prompt_append": "- [세부 계획 수립] 작업 계획(Plan) 파일 작성 시, 단순히 수행할 일을 나열하는 것을 넘어 소스코드 단위의 설계(예: 함수명, 주요 로직의 흐름, 의존성 관계)를 포함하도록 구체화하십시오.\n- [코드 재사용 우선] 새로운 유틸리티나 헬퍼 함수 구현을 계획하기 전에, 반드시 Librarian이나 Explore 에이전트를 활용해 전체 코드베이스(공용 패키지 및 공유 디렉터리 등)에 이미 동일하거나 유사한 목적의 함수가 존재하는지 먼저 확인하고 재사용을 계획하십시오."
+    },
+    "hephaestus": {
+      "model": "ollama-cloud/qwen3-coder-next"
+    },
+    "oracle": {
+      "model": "ollama-cloud/gemma4:31b-cloud"
+    },
+    "librarian": {
+      "model": "ollama-cloud/minimax-m2.7"
+    },
+    "explore": {
+      "model": "ollama-cloud/minimax-m2.7",
+      "prompt_append": "- [코드 탐색] 다른 에이전트가 유틸리티 함수나 공통 로직의 존재 여부를 물어볼 경우, 전역 유틸리티 디렉터리나 공용 패키지 내의 export된 함수들을 최우선으로 검색하여 정확한 import 경로와 사용법을 제공하십시오."
+    },
+    "multimodal-looker": {
+      "model": "ollama-cloud/gemini-3-flash-preview"
+    },
+    "metis": {
+      "model": "ollama-cloud/gemma4:31b-cloud",
+      "prompt_append": "- [최종 검수 - JSDoc] Sisyphus가 작성한 코드의 JSDoc을 검토하십시오. `@param`, `@throws`, `@returns` 중 하나라도 누락되었거나, 복잡한 로직임에도 `@example`이 없다면 수정을 요구하며 반려하십시오.\n- [최종 검수 - 중복 방지] 새로 추가된 유틸리티 함수가 기존 코드베이스에 이미 존재하는 기능과 중복되는지 검토하십시오. 중복이 의심되면 기존 공용 함수를 임포트(import)하여 사용하도록 지시하십시오."
+    },
+    "momus": {
+      "model": "ollama-cloud/gemma4:31b-cloud"
+    },
+    "atlas": {
+      "model": "ollama-cloud/minimax-m2.7"
+    },
+    "sisyphus-junior": {
+      "model": "ollama-cloud/qwen3-coder-next"
+    },
+    "sisyphus": {
+      "model": "ollama-cloud/glm-5",
+      "prompt_append": "- [코딩 규칙 - JSDoc 필수] 모든 함수, 클래스, 인터페이스 작성 시 JSDoc을 작성하십시오. 이 때 `@param`, `@throws`, `@returns` 태그는 예외 없이 반드시 포함되어야 합니다.\n- [코딩 규칙 - 예시 포함] 구현하는 로직이 복잡하거나 분기 처리가 많은 경우, 다른 개발자가 이해할 수 있도록 JSDoc 내에 `@example` 태그를 사용하여 구체적인 사용 예시 코드를 반드시 포함하십시오.\n- [중복 구현 방지] 유틸리티 성격의 함수를 새로 작성해야 할 경우, 즉시 코딩을 시작하지 말고 작업 공간 내에 공용으로 쓰이는 함수가 있는지 탐색 도구(AST-Grep 또는 검색)를 통해 한 번 더 확인하십시오.\n- [검증 단계] 코딩 완료 직후, 본인이 작성한 JSDoc에 필수 태그가 모두 있는지, 테스트 시나리오를 통과하는지 자가 점검하십시오."
+    },
+    "frontend-ui-ux-engineer": {
+      "model": "ollama-cloud/gemini-3-flash-preview"
+    },
+    "document-writer": {
+      "model": "ollama-cloud/kimi-k2.5"
+    }
+  },
+  "categories": {
+    "visual-engineering": {
+      "model": "ollama-cloud/gemini-3-flash-preview"
+    },
+    "ultrabrain": {
+      "model": "ollama-cloud/glm-5"
+    },
+    "deep": {
+      "model": "ollama-cloud/qwen3-coder-next"
+    },
+    "artistry": {
+      "model": "ollama-cloud/minimax-m2.7"
+    },
+    "quick": {
+      "model": "ollama-cloud/gemma3:12b"
+    },
+    "unspecified-low": {
+      "model": "ollama-cloud/ministral-3:8b"
+    },
+    "unspecified-high": {
+      "model": "ollama-cloud/glm-5"
+    },
+    "writing": {
+      "model": "ollama-cloud/gemini-3-flash-preview"
+    }
+  },
+  "experimental": {
+    "auto_resume": true
+  },
+  "google_auth": false
+}
