@@ -1,53 +1,121 @@
 ---
-description: 요구사항 기반의 순수 테스트 시나리오 기획, Metis의 엄격한 교차 검증, 코딩과 테스트 코드 작성의 단계 분리를 통해 AI 편향을 방지하는 엔드투엔드 구현 워크플로입니다. 명세를 관찰 가능한 단언문(pseudo-assertion) 형식으로 강제하고, Momus의 명세↔테스트 변환 검증을 통해 스펙 주도 검증(SDV)에 최대한 근접합니다.
+description: End-to-end implementation workflow that prevents AI bias through requirement-based test scenario planning, strict cross-validation by Metis, and separation of coding from test writing. Enforces specs as observable pseudo-assertions and achieves Spec-Driven Verification (SDV) via Momus's spec↔test translation validation.
 ---
 
-당신은 아래 워크플로를 **단계 순서대로, 중단 없이** 실행하는 오케스트레이터입니다.
-각 단계를 시작할 때 반드시 "▶ Step N 시작" 을 출력하고, 완료 시 "✅ Step N 완료"를 출력하십시오.
-절대 단계를 건너뛰거나 순서를 바꾸지 마십시오.
+You are the orchestrator. Execute the workflow below **in order, without interruption**.
+Print `▶ PHASE N start` at the beginning of each step and `✅ PHASE N done` upon completion.
+Never skip or reorder steps.
 
 ---
 
-## 구현 요구사항
+## Pre-flight — Declare keyword
+
+Before PHASE 0, determine the **keyword** by the rules below. Use it consistently in every step.
+
+- If the first word of `$ARGUMENTS` is a valid identifier (letters, digits, hyphens only), use it as the keyword.
+- Otherwise summarize `$ARGUMENTS` into a ≤3-word lowercase kebab-case slug.
+  - e.g. "Add user login feature" → `user-login`
+  - e.g. "Implement payment refund API" → `payment-refund`
+
+Print:
+```
+📌 keyword: {keyword}
+   plan     : .sisyphus/plans/{keyword}.md
+   scenarios: .sisyphus/tests/{keyword}.md
+```
+
+---
+
+## Requirements
 
 $ARGUMENTS
 
 ---
 
-## Step 1 — 아키텍처 및 기능 테스트 시나리오 수립 (Prometheus)
+## PHASE 0 — Load project context
 
-`@prometheus` 에이전트를 호출하여 아래 지시를 그대로 전달하십시오.
+Check for these files at the project root. Read each one that exists.
 
-> **Prometheus에게 전달할 지시:**
+| File | Purpose | Usage |
+|---|---|---|
+| `TROUBLE_SHOOT.md` | Past AI mistakes and prevention rules | Apply throughout all steps to avoid repeating errors |
+| `RULES.md` | Project-wide coding rules and conventions | Enforce without exception in all implementation, test, and refactor steps |
+| `DESIGN.md` | UX/UI principles, interaction guide, design conventions | Follow in all frontend-related work |
+| `ARCHITECTURE.md` | System architecture, layer structure, tech-stack conventions | Use as the basis for planning (Prometheus) and implementation (Atlas) |
+
+- If none of the four files exist, skip to PHASE 1.
+- After reading, print: `▶ PHASE 0 done — TROUBLE_SHOOT.md: {found/not found}, RULES.md: {found/not found}, DESIGN.md: {found/not found}, ARCHITECTURE.md: {found/not found}`
+
+---
+
+## PHASE 1 — Write implementation plan (Prometheus)
+
+Call `@prometheus` with:
+
+> Write an **implementation plan only** for the requirements below.
+> **Do NOT write test scenarios at this step.** A separate agent handles tests independently.
 >
-> 다음 요구사항을 분석하여 두 가지 산출물을 생성하라.
+> If context files were loaded in PHASE 0, internalize them before planning:
+> - `TROUBLE_SHOOT.md` → embed prevention rules throughout the plan.
+> - `RULES.md` → follow coding rules and conventions without exception.
+> - `ARCHITECTURE.md` → use layer structure and tech-stack conventions as design baseline.
+> - `DESIGN.md` → apply UX/UI principles to any frontend-related output.
 >
-> ---
+> ### Deliverable — `.sisyphus/plans/{keyword}.md`
 >
-> ### [산출물 1] 구현 계획 — `.sisyphus/plans/plan-{keyword}.md`
+> - Write a detailed plan including function names, major logic flows, and dependency relationships.
+> - Use Librarian/Explore to find reusable utilities in the codebase first; document the reuse plan.
+> - **Do NOT write any code (implementation or test) at this step.**
+> - Include a **[File Scope]** section in this format — it is the absolute boundary for all subsequent steps:
 >
-> - 소스코드 단위의 설계(함수명, 주요 로직 흐름, 의존성 관계)를 포함한 세부 계획을 작성하라.
-> - Librarian/Explore를 활용해 코드베이스 내 재사용 가능한 유틸리티를 먼저 확인하고 재사용 계획을 명시하라.
-> - **절대 이 단계에서 실제 코드(구현 코드 또는 테스트 코드)를 작성하지 마라.**
+>   ```markdown
+>   ## File Scope
 >
-> ---
+>   ### New files
+>   - {path to create}
 >
-> ### [산출물 2] 기능 테스트 시나리오 명세서 — `.sisyphus/plans/test_scenarios.md`
+>   ### Allowed modifications
+>   - {existing file path} (reason)
 >
-> 이 파일은 이후 모든 검증의 **절대적이고 유일한 기준**이 된다.
-> 아래 규칙을 한 항목도 빠짐없이 준수하라.
+>   ### Test output path
+>   - {test directory path, e.g. apps/api/src/tests/scenario/}
 >
-> #### 작성 원칙
+>   ### Out-of-scope (never modify)
+>   - All existing files not listed above
+>   ```
 >
-> **[원칙 1] 관찰 가능한 단언문(pseudo-assertion)으로만 기대결과를 표현하라.**
-> 자연어 서술은 기대결과 항목에 절대 사용하지 마라.
-> 모든 기대결과는 아래 형식의 단언문으로만 작성하라:
+> Requirements:
+> $ARGUMENTS
+
+---
+
+## PHASE 2 — Write test scenarios (Oracle)
+
+**Run in parallel with PHASE 1.** PHASE 1 and PHASE 2 do not depend on each other's output — start both simultaneously. **Wait for both to finish before proceeding to PHASE 3.**
+
+Call `@oracle` with:
+
+> Read the requirements below and write a functional test scenario spec.
+>
+> **⚠️ Do NOT read `.sisyphus/plans/` or any implementation plan files.**
+> This spec must be based on requirements only. Reading the plan contaminates SDV independence.
+>
+> ※ **Isolation scope**: This is a filesystem-level isolation rule. If `@oracle` runs as a sub-agent with an independent context window in oh-my-opencode, isolation is guaranteed. Otherwise, Prometheus's plan content may remain in the orchestrator context. In either case, Oracle must honor the file access prohibition and reason only from the requirements text.
+>
+> ### Deliverable — `.sisyphus/tests/{keyword}.md`
+>
+> This file is the **sole and absolute reference** for all validation. Follow every rule below without exception.
+>
+> #### Writing principles
+>
+> **[Rule 1] Express every expected result as an observable pseudo-assertion.**
+> Never use prose for expected results. Use only:
 >
 > ```
-> assert <관찰 대상> <연산자> <기댓값>
+> assert <target> <operator> <expected>
 > ```
 >
-> 허용 예시:
+> Allowed examples:
 > ```
 > assert response.status === 200
 > assert response.body.userId is string
@@ -56,286 +124,445 @@ $ARGUMENTS
 > assert error.code === 'INVALID_INPUT'
 > assert result is null
 > assert called(sendEmail) === true
+> assert called(sendEmail).times === 1
 > assert elapsedTime < 500  // ms
+> assert state(db.user[1]) contains { active: true }
+> assert state(queue.jobs) length === 3
+> assert not called(externalApi)
 > ```
 >
-> 금지 예시 (자연어 서술 — 사용 불가):
+> `called()` = whether a function/API/event was invoked. `state()` = final state of a side-effect target (DB, cache, queue, etc.).
+> For async responses, streaming, or complex state changes that cannot be expressed as a single comparison, decompose into observable assertions using these keywords.
+>
+> Forbidden (prose — never use):
 > ```
-> - 사용자가 성공적으로 생성된다      ← 금지
-> - 적절한 오류 메시지가 반환된다     ← 금지
-> - 토큰이 올바르게 발급된다          ← 금지
+> - User is created successfully       ← forbidden
+> - An appropriate error is returned   ← forbidden
+> - Token is issued correctly          ← forbidden
 > ```
 >
-> **[원칙 2] 모호한 표현을 절대 사용하지 마라.**
-> "적절한", "올바른", "정상적인", "충분한", "빠른" 같은 형용사는 단언문 내에서 사용을 금지한다.
-> 반드시 구체적인 값, 타입, 범위, 호출 여부로 대체하라.
+> **[Rule 2] No ambiguous adjectives.** Ban "appropriate", "correct", "normal", "sufficient", "fast" inside assertions. Replace with concrete values, types, ranges, or call counts.
 >
-> **[원칙 3] 각 시나리오는 독립적으로 실행 가능해야 한다.**
-> 다른 시나리오의 실행 결과에 의존하는 전제조건을 두지 마라.
-> 전제조건은 테스트 환경이 독립적으로 구성할 수 있는 상태로만 기술하라.
+> **[Rule 3] Each scenario must be independently executable.** No preconditions that depend on another scenario's result. Express preconditions only as states the test environment can set up independently.
 >
-> **[원칙 4] 성공 케이스와 실패 케이스를 반드시 분리하여 각각 독립된 시나리오로 작성하라.**
-> 하나의 시나리오에 성공과 실패를 함께 기술하지 마라.
+> **[Rule 4] Separate success and failure cases into distinct scenarios.** Never mix success and failure in one scenario.
 >
-> #### 시나리오 형식 (모든 시나리오에 예외 없이 적용)
+> #### Scenario format (apply to every scenario without exception)
 >
 > ```markdown
-> ### TC-{NNN}: {시나리오 제목}
+> ### TC-{NNN}: {title}
 >
-> - **분류**: Happy Path | Edge Case | Error Case | Security
-> - **목적**: {이 시나리오가 검증하는 기능적 목표를 한 문장으로}
-> - **전제 조건**:
->   - {테스트 환경이 독립적으로 구성 가능한 상태를 나열}
-> - **입력값 / 행동**:
->   - {구체적인 입력값 또는 수행할 행동}
-> - **기대 결과** (pseudo-assertion):
+> - **Type**: Happy Path | Edge Case | Error Case | Security
+> - **Goal**: {one sentence describing what this scenario verifies}
+> - **Preconditions**:
+>   - {independently configurable state}
+> - **Input / Action**:
+>   - {concrete input values or actions}
+> - **Expected results** (pseudo-assertions):
 >   ```
 >   assert ...
 >   assert ...
 >   ```
-> - **예외·경계 케이스**: {해당 없으면 "N/A"}
+> - **Edge / boundary notes**: {N/A if none}
 > ```
 >
-> ---
->
-> 요구사항:
+> Requirements:
 > $ARGUMENTS
 
 ---
 
-## Step 2 — 계획 및 시나리오 교차 검증 (Metis)
+## PHASE 3 — Cross-validate plan and scenarios (Metis)
 
-Step 1 완료 직후 즉시 `@metis` 에이전트를 호출하여 아래 지시를 전달하십시오.
+**[Join point]** Start only after both `.sisyphus/plans/{keyword}.md` and `.sisyphus/tests/{keyword}.md` exist.
 
-> **Metis에게 전달할 지시:**
+Call `@metis` with:
+
+> Read `.sisyphus/plans/{keyword}.md` and `.sisyphus/tests/{keyword}.md` and strictly review all items below.
 >
-> `.sisyphus/plans/` 디렉터리에 생성된 구현 계획과 `test_scenarios.md`를 전부 읽고 다음 항목을 엄격히 검토하라.
+> #### [Plan review]
+> 1. **Missing requirements**: Any user requirement not reflected in the plan?
+> 2. **Error handling gaps**: Missing handling for error cases, boundary values, or abnormal inputs?
+> 3. **Security vulnerabilities**: Auth, input validation, or data exposure gaps?
+> 4. **Architecture gaps**: Missing dependencies, wrong layer responsibility, or scalability issues?
 >
-> #### [계획 검토]
-> 1. **누락된 요구사항**: 사용자의 최초 요구사항 중 계획에 반영되지 않은 항목이 있는가?
-> 2. **예외 처리 공백**: 에러 케이스·경계값·비정상 입력에 대한 처리가 누락되었는가?
-> 3. **보안 취약점**: 인증, 입력 검증, 데이터 노출 등 보안상 갭이 존재하는가?
-> 4. **아키텍처 갭**: 의존성 누락, 잘못된 레이어 책임 분리, 확장성 문제가 있는가?
+> #### [Scenario spec review]
+> 5. **Assertion format compliance**: Every expected result in `assert <target> <op> <value>` form?
+> 6. **Ambiguous expressions**: Any "appropriate", "correct", "normal" etc. remaining?
+> 7. **Scenario independence**: Every scenario independently executable without depending on another?
+> 8. **Success/failure separation**: Any scenario mixing success and failure?
+> 9. **Coverage sufficiency**: Any missing scenarios across Happy Path, Edge Case, Error Case, Security?
 >
-> #### [시나리오 명세 검토]
-> 5. **단언문 형식 준수**: 모든 기대결과가 `assert <대상> <연산자> <값>` 형식인가?
->    자연어 서술이 단 하나라도 있으면 즉시 Prometheus에게 수정을 요구하라.
-> 6. **모호한 표현 제거**: "적절한", "올바른", "정상적인" 등 해석이 열려 있는 표현이 있는가?
->    있다면 구체적인 값·타입·범위로 교체하도록 요구하라.
-> 7. **시나리오 독립성**: 각 시나리오가 다른 시나리오에 의존하지 않고 독립 실행 가능한가?
-> 8. **성공/실패 분리**: 하나의 시나리오에 성공과 실패가 혼재하는가?
-> 9. **커버리지 충분성**: Happy Path, Edge Case, Error Case, Security 분류가 요구사항에 비해 누락된 시나리오가 있는가?
+> #### How to report issues
 >
-> 문제가 발견되면 Prometheus에게 수정을 요구하여 보완하고, 보완 완료 후 전체 항목을 다시 검토하라.
-> **9개 항목 모두 통과된 경우에만 "교차 검증 완료"를 선언하라.**
+> Report issues to the **orchestrator** as a list. Do not call Prometheus or Oracle directly.
+> The orchestrator re-calls the relevant agent with your full report.
+> - Plan issues (1–4) → orchestrator re-calls `@prometheus` with the full Metis report.
+> - Scenario issues (5–9) → orchestrator re-calls `@oracle` with the **full original PHASE 2 instructions (including isolation rules) plus the Metis report**.
+>   The isolation rule ("never read `.sisyphus/plans/`") applies on every re-call without exception.
+>
+> After each fix, re-review all items.
+> **Declare "Cross-validation complete" only when all 9 items pass.**
+>
+> #### Escape condition
+>
+> The orchestrator tracks `@prometheus` re-call count and `@oracle` re-call count independently.
+> **If either exceeds 3**, stop the review loop and escalate to the user via `ask_user_input_v0`:
+>
+> ```
+> ⚠️  Cross-validation loop escape — user intervention required
+> ─────────────────────────────────────
+> Iterations   : exceeded 3
+> Failed items : (item numbers and descriptions)
+> Last fix by  : (Prometheus / Oracle)
+> ─────────────────────────────────────
+> ```
+>
+> - **Question**: "Validation loop did not converge. How would you like to proceed?"
+> - **Options**: `Proceed with current state` / `Abort workflow`
+> - If proceed: log failed items as risks and move to PHASE 4.
+> - If abort: terminate the workflow.
 
 ---
 
-## Step 3 — 구현 진행 여부 확인 (User Confirmation)
+## PHASE 4 — Confirm implementation (User Confirmation)
 
-Metis의 교차 검증이 완료된 후, 다음 순서로 진행하십시오.
-
-**[3-1] 계획 요약 출력**
-
-`ask_user_input_v0` 호출 전에 반드시 먼저 아래 형식으로 화면에 출력하십시오.
+**[Compact context]** Before entering this step, summarize PHASE 0–3 logs in the format below, then immediately run `/compact` to remove the raw logs from context. Pass the summary block as the compaction hint so it remains accessible in later steps.
 
 ```
-📋 계획 요약
+📦 Context summary — PHASE 0–3
+  Context files loaded : {found/not found list}
+  Prometheus plan core : {2–3 lines of key design decisions}
+  Oracle scenario count: Happy Path N / Edge N / Error N / Security N
+  Metis issues         : {summary of fix requests or "none"}
+  Prometheus re-calls  : {N}, Oracle re-calls: {N}
+```
+
+**[Pre-check]** Before calling `ask_user_input_v0`, verify:
+- Metis declared "Cross-validation complete"?
+- Both `.sisyphus/plans/{keyword}.md` and `.sisyphus/tests/{keyword}.md` exist?
+
+Wait until both conditions are met before continuing.
+
+**[4-1] Print plan summary**
+
+Print before calling `ask_user_input_v0`:
+
+```
+📋 Plan summary
 ─────────────────────────────────────
-주요 변경/생성 파일:
-  (구현 계획에서 추출한 파일 목록)
+Files to create/modify:
+  (list from Scope section of the plan)
 
-발견된 리스크 및 주의사항:
-  (Metis가 발견하거나 Prometheus가 명시한 리스크. 없으면 "없음")
+Risks and notes:
+  (risks flagged by Metis or Prometheus, or "none")
 
-테스트 시나리오 수:
-  (분류별 집계: Happy Path N건 / Edge Case N건 / Error Case N건 / Security N건 / 합계 N건)
+Test scenario count:
+  Happy Path N / Edge Case N / Error Case N / Security N / Total N
 
-재사용 예정 공용 유틸리티:
-  (재사용 계획에 명시된 항목. 없으면 "없음")
+Shared utilities to reuse:
+  (items from reuse plan, or "none")
 ─────────────────────────────────────
-전체 계획은 .sisyphus/plans/ 에서 확인할 수 있습니다.
+Full plan: .sisyphus/plans/{keyword}.md
 ```
 
-**[3-2] 사용자 확인 요청**
+**[4-2] Ask user**
 
-출력이 완료된 후 `ask_user_input_v0` 도구를 사용하여 확인을 요청하십시오.
-
-- **질문**: "위 계획대로 코드 구현을 진행할까요?"
-- **선택지**: `진행 (Y)` / `중단 (N)`
-- 사용자가 **N** 을 선택하면 즉시 워크플로를 종료하고 "워크플로가 사용자 요청으로 중단되었습니다."를 출력하십시오.
-
----
-
-## Step 4 — 실제 코드 구현 (Atlas / /start-work)
-
-사용자가 Y를 선택한 경우, `/start-work` 명령을 실행하십시오.
-
-Atlas에게 다음 제약을 반드시 전달하십시오.
-
-> **Atlas 실행 지시:**
->
-> `.sisyphus/plans/` 의 구현 계획을 바탕으로 기능 코드를 구현하라.
->
-> **[필수 제약]**
-> - **이 단계에서는 절대 테스트 코드를 작성하지 마라.** 오직 기능 구현에만 집중하라.
-> - 계획에 명시된 재사용 가능한 유틸리티는 새로 작성하지 말고 반드시 import하여 사용하라.
-> - 모든 함수·클래스·인터페이스에 JSDoc을 **이 단계에서 완성된 상태로** 작성하라.
->   `@param`, `@throws`, `@returns` 태그는 예외 없이 포함하라.
->   복잡한 분기 처리가 있는 로직에는 `@example` 태그로 사용 예시를 포함하라.
->   단, getter/setter처럼 자명한 단순 접근자는 JSDoc 생략을 허용한다.
-> - **JSDoc은 이후 단계에서 보완하지 않는다고 가정하고 지금 완성하라.**
-> - 구현 완료 후 본인이 작성한 JSDoc 필수 태그 포함 여부를 자가 점검하라.
+Call `ask_user_input_v0`:
+- **Question**: "Proceed with implementation as planned?"
+- **Options**: `Yes (Y)` / `Abort (N)`
+- If **N**: terminate immediately and print "Workflow aborted by user."
 
 ---
 
-## Step 5 — 기능 테스트 진행 여부 확인 (User Confirmation)
+## PHASE 5 — Implement code (Atlas)
 
-기능 구현 완료 후, `ask_user_input_v0` 도구를 사용하여 확인을 요청하십시오.
+If user chose Y, call `@atlas` with:
 
-- **질문**: "구현이 완료되었습니다. test_scenarios.md 의 시나리오를 기반으로 테스트 코드를 생성하고 기능을 검증할까요?"
-- **선택지**: `진행 (Y)` / `건너뛰기 (N)`
-- **N** 선택 시 Step 9로 즉시 이동하고, Step 11(메모리 저장) 시 테스트가 실행되지 않았음을 반드시 기록하십시오.
-
----
-
-## Step 6 — 테스트 코드 작성
-
-승인(Y) 시, 다음 지시를 실행하십시오.
-
-> **테스트 작성 지시:**
+> Read `.sisyphus/plans/{keyword}.md` and implement the feature code.
+> This plan was created by Prometheus, validated by Metis, and approved by the user.
+> **Start implementing immediately — no re-planning, re-investigation, or user confirmation.**
 >
-> `.sisyphus/plans/test_scenarios.md` 를 읽고, 각 시나리오 ID(TC-NNN)를 1:1로 대응하는 테스트 코드를 작성하라.
->
-> **[필수 제약]**
-> - 테스트 파일은 `.sisyphus/tests/` 디렉터리에 저장하라.
-> - **구현 코드의 내부 구조(함수 시그니처, 클래스 구조 등)를 참고하지 마라.**
->   오직 시나리오의 `기대 결과(pseudo-assertion)` 항목을 그대로 테스트 단언문으로 변환하라.
-> - 각 테스트 케이스 상단에 대응하는 시나리오 ID를 주석으로 명시하라.
+> **[Required constraints]**
+> - **Do NOT write test code at this step.** Focus solely on feature implementation.
+> - Reuse utilities listed in the plan — import them, do not rewrite.
+> - Write complete JSDoc for every function, class, and interface **now** — do not defer.
+>   Always include `@param`, `@throws`, `@returns`. Add `@example` for complex branching logic.
+>   Simple accessors (getter/setter) may omit JSDoc.
+> - After implementation, self-check all JSDoc for missing required tags (`@param`, `@throws`, `@returns`).
+>   Fix any gaps immediately and report to the orchestrator:
 >   ```
->   // TC-001: 정상 사용자 생성
+>   [Atlas JSDoc report]
+>   Fixed: {file path} — added: {@throws, etc.}
 >   ```
-> - 시나리오의 `assert A === B` 는 테스트 프레임워크의 `expect(A).toBe(B)` 또는 동등한 단언문으로 변환하라.
->   단언문의 **의미**를 변경하지 마라. 변환은 문법 차이에 의한 것이어야 한다.
-> - **아직 테스트를 실행하지 마라.** 작성만 완료하라.
+>   If nothing to fix, report: "JSDoc check passed."
+> - **[Scope constraint — strict]** Only create or modify files listed in the File Scope section of `.sisyphus/plans/{keyword}.md`.
+>   If you need to touch an out-of-scope file, stop immediately and report to the orchestrator.
+>   The orchestrator will request user approval via `ask_user_input_v0` before allowing it:
+>   > Out-of-scope file modification request
+>   > File: {path}
+>   > Reason: {why it is needed}
+>   > Impact: {potential effect on other features}
+>   Modifying out-of-scope files without approval is strictly forbidden.
 
 ---
 
-## Step 7 — 명세↔테스트 변환 정확성 검증 (Momus)
+## PHASE 6 — Confirm test generation (User Confirmation)
 
-테스트 코드 작성이 완료된 직후, `@momus` 에이전트를 호출하여 아래 지시를 전달하십시오.
+**[Pre-check]** Before calling `ask_user_input_v0`, verify:
+- Atlas completed feature implementation?
+- Orchestrator received Atlas's JSDoc report (and confirmed any fixes)?
 
-> **Momus에게 전달할 지시:**
->
-> `.sisyphus/plans/test_scenarios.md` 와 `.sisyphus/tests/` 의 테스트 코드를 나란히 읽고,
-> 명세(pseudo-assertion)가 테스트 코드로 **정확하게** 변환되었는지 시나리오 ID 단위로 검증하라.
->
-> #### 검증 기준
->
-> 각 TC에 대해 다음 세 가지를 판단하라:
->
-> 1. **1:1 대응 여부**: 모든 TC-NNN에 대응하는 테스트 케이스가 존재하는가?
->    누락된 TC가 있으면 즉시 목록으로 나열하라.
->
-> 2. **단언문 의미 보존**: 시나리오의 각 `assert` 항목이 테스트 코드의 단언문과 **논리적으로 동일한가**?
->    아래 유형의 오차를 찾아내라:
->    - 값 변환 오류: `assert status === 200` → `expect(status).toBe(201)` (값이 바뀜)
->    - 방향 오류: `assert count === (before + 1)` → `expect(count).toBeGreaterThan(0)` (더 약한 단언)
->    - 대상 오류: `assert response.body.token is string` → `expect(response.status).toBe(200)` (다른 대상을 검증)
->    - 누락: 시나리오의 assert 항목 중 테스트 코드에 반영되지 않은 것
->
-> 3. **전제조건 구성 충실도**: 시나리오의 전제조건이 테스트의 setup 코드에 실제로 반영되었는가?
->
-> #### 처리 방식
->
-> - 오차가 발견된 TC는 아래 형식으로 보고하라:
->   ```
->   [TC-NNN] 오차 유형: {값 변환 오류 | 방향 오류 | 대상 오류 | 누락}
->   명세:  assert response.status === 200
->   코드:  expect(response.status).toBe(201)
->   조치:  테스트 코드를 명세에 맞게 수정하라
->   ```
-> - 오차가 있으면 테스트 코드를 직접 수정하라. **명세(test_scenarios.md)는 절대 수정하지 마라.**
-> - 수정 후 해당 TC를 재검증하라.
-> - 모든 TC가 통과된 경우에만 "명세↔테스트 변환 검증 완료"를 선언하라.
+Wait until both conditions are met.
+
+Call `ask_user_input_v0`:
+- **Question**: "Implementation complete. Generate test code and verify functionality based on `.sisyphus/tests/{keyword}.md`?"
+- **Options**: `Yes (Y)` / `Skip (N)`
+- If **N**: jump to PHASE 10 immediately. Record "tests not run" in PHASE 11.
 
 ---
 
-## Step 8 — 테스트 실행 및 자가 수정 루프
+## PHASE 7 — Write test code
 
-Momus의 검증이 완료된 후, 테스트를 실행하십시오.
+If user chose Y, delegate via `delegate_task(subagent_type="business-logic")` with:
 
-**자가 수정 루프:**
+> Read `.sisyphus/tests/{keyword}.md` and write test code with 1:1 mapping to each TC-NNN.
+>
+> **⚠️ Implementation isolation**: Do NOT open or read the new/modified files listed in the Scope section of `.sisyphus/plans/{keyword}.md`.
+> Write tests based solely on the `Expected results (pseudo-assertions)` in the spec.
+> Referencing implementation internals (function signatures, class structure, variable names) ties tests to implementation and violates SDV.
+>
+> **[Required constraints]**
+> - Save test files to the path in the "Test output path" of the Scope section.
+> - Add the corresponding scenario ID as a comment at the top of each test case:
+>   ```
+>   // TC-001: Normal user creation
+>   ```
+> - Translate `assert A === B` to `expect(A).toBe(B)` or the equivalent framework assertion.
+>   Do NOT change the **meaning** of assertions. Translation is purely syntactic.
+> - **Do NOT run tests yet.** Writing only.
 
-테스트 실행 후 실패가 발생하면 다음 순서를 따르십시오.
+---
 
-1. 실패한 테스트의 오류 로그를 분석하라.
-2. **테스트 코드가 시나리오의 의도를 올바르게 구현했다고 판단되면** → 테스트 코드를 수정하지 말고 **기능 코드를 수정**하라.
-3. **테스트 코드 자체에 버그가 있다고 판단되면** → 테스트 코드만 수정하라.
-   단, 수정 후 반드시 Momus에게 해당 TC의 단언문 의미 보존 여부를 재확인 받아라.
-4. 수정 후 테스트를 재실행하라.
-5. **루프 탈출 조건**: 동일한 테스트 실패가 **5회 반복**되면 루프를 즉시 중단하고 아래 내용을 화면에 출력한 뒤 `ask_user_input_v0` 도구로 사용자에게 에스컬레이션하라.
+## PHASE 8 — Validate spec↔test translation (Momus)
+
+Immediately after test writing completes, call `@momus` with:
+
+> Read `.sisyphus/tests/{keyword}.md` and the test files at the Scope's test output path side by side.
+> Verify that every pseudo-assertion was translated accurately, per TC-NNN.
+>
+> #### Validation criteria
+>
+> For each TC, judge:
+>
+> 1. **1:1 coverage**: Does every TC-NNN have a corresponding test case? List any missing TCs immediately.
+>
+> 2. **Assertion meaning preserved**: Is each `assert` item logically identical to the test code assertion?
+>    Find these error types:
+>    - Value error: `assert status === 200` → `expect(status).toBe(201)` (value changed)
+>    - Direction error: `assert count === (before + 1)` → `expect(count).toBeGreaterThan(0)` (weaker assertion)
+>    - Target error: `assert response.body.token is string` → `expect(response.status).toBe(200)` (wrong target)
+>    - Omission: an `assert` item from the spec not reflected in the test
+>
+> 3. **Precondition setup fidelity**: Are scenario preconditions actually implemented in the test setup code?
+>
+> #### How to handle issues
+>
+> - Report each flawed TC:
+>   ```
+>   [TC-NNN] Error type: {value error | direction error | target error | omission}
+>   Spec : assert response.status === 200
+>   Code : expect(response.status).toBe(201)
+>   Fix  : Update test code to match spec
+>   ```
+> - Fix test code directly. **Never modify `.sisyphus/tests/{keyword}.md`.**
+> - Re-verify each fixed TC.
+> - Declare "Spec↔test translation validated" only when all TCs pass.
+> - **If any fixes were made**, report to the orchestrator:
+>   ```
+>   [Momus fix report]
+>   TC-NNN:
+>     Before: expect(response.status).toBe(201)
+>     After : expect(response.status).toBe(200)
+>     Reason: matched spec assertion response.status === 200
+>   ```
+>   If no fixes: "No fixes."
+
+After PHASE 8, the orchestrator prints and proceeds to PHASE 9:
 
 ```
-⚠️  자가 수정 루프 탈출 — 사용자 개입 필요
+📋 PHASE 8 Momus fix report
 ─────────────────────────────────────
-반복 횟수: 5회 초과
-실패한 테스트: (실패한 시나리오 ID 목록)
-마지막 오류:  (오류 메시지 요약)
-판단 근거:    (기능 코드 문제인지 테스트 코드 문제인지 에이전트의 판단)
+{fix details or "No fixes"}
 ─────────────────────────────────────
 ```
 
-- **질문**: "자동 수정이 실패했습니다. 어떻게 진행할까요?"
-- **선택지**: `테스트를 건너뛰고 계속 진행` / `워크플로 중단`
-- 건너뛰기 선택 시 Step 9로 이동하고 Step 11 메모리 저장 시 미해결 실패 항목을 명시적으로 기록하라.
-- 중단 선택 시 워크플로를 종료하라.
-
 ---
 
-## Step 9 — 리팩터링 진행 여부 확인 (User Confirmation)
+## PHASE 9 — Run tests and self-correction loop
 
-`ask_user_input_v0` 도구를 사용하여 확인을 요청하십시오.
-
-- **질문**: "테스트 검증이 완료되었습니다. 리팩터링을 진행할까요?"
-- **선택지**: `진행 (Y)` / `건너뛰기 (N)`
-- **N** 선택 시 Step 11로 즉시 이동하십시오.
-
----
-
-## Step 10 — 리팩터링 실행
-
-승인(Y) 시, `/refactor` 명령을 실행하십시오.
-
----
-
-## Step 11 — 컨텍스트 메모리 저장
-
-`memory-manager` 스킬을 호출하여 아래 항목을 영구 저장하십시오.
-
-- 이번 작업의 핵심 요구사항 요약
-- 주요 변경·생성된 파일 목록 및 경로
-- 적용된 기술 스택 및 핵심 설계 결정 사항
-- 재사용된 공용 유틸리티 목록 (파일 경로 + import 경로)
-- 트러블슈팅 내역 (발생한 문제 → 해결 방법)
-- **테스트 실행 여부**: 실행했다면 통과/실패 결과를, 건너뛰었다면 "테스트 미실행"을 명시하라.
-- **미해결 실패 항목**: 루프 탈출로 건너뛴 테스트가 있다면 해당 시나리오 ID와 마지막 오류를 기록하라.
-
----
-
-## Step 12 — 작업 완료 보고
-
-다음 형식으로 최종 보고를 출력하고 워크플로를 종료하십시오.
+**[Compact context]** Before entering this step, summarize PHASE 5–8 logs in the format below, then immediately run `/compact` to remove the raw logs from context. Pass the summary block as the compaction hint so it remains accessible in later steps.
 
 ```
-✅ /implement 워크플로 완료
+📦 Context summary — PHASE 5–8
+  Implemented files : {file list}
+  JSDoc fixes       : {file list or "none"}
+  Momus fix summary : {fixed TC list and types or "no fixes"}
+```
 
-📋 계획 파일     : .sisyphus/plans/
-🧪 테스트 시나리오: .sisyphus/plans/test_scenarios.md
-🧾 테스트 코드   : .sisyphus/tests/  (Skip 시 해당 없음)
-🔍 명세↔테스트 검증: 완료 (Skip 시 해당 없음)
-🔧 리팩터링      : 실행됨 / 건너뜀
-💾 메모리 저장   : 완료
+After Momus's validation, the orchestrator declares the **active Scope**:
 
-모든 작업이 성공적으로 완료되었습니다.
+```
+▶ PHASE 9 entry — Active Scope
+   Modifiable files:
+     - {new files + allowed modifications from Scope section}
+   Test output path: {from Scope section}
+   Excluded TCs: none
+```
+
+Use this declared Scope for all Momus calls and `delegate_task` instructions within this step.
+
+Run the tests.
+
+- **If all TCs pass, proceed to PHASE 10 immediately.**
+- If failures occur, follow the self-correction loop below.
+
+**Self-correction loop:**
+
+1. Collect failed TC list and error logs.
+2. Call `@momus` with:
+   > These TCs failed during test execution. Compare against `.sisyphus/tests/{keyword}.md` spec and classify each as **"feature bug"** or **"test bug"**. State the reason for each judgment.
+   > Failed TCs and error logs: {list}
+3. Branch on Momus's verdict:
+   - **Feature bug** → delegate via `delegate_task(subagent_type="deep")`:
+     > Fix only the **feature code** causing the test failure. Never touch test code.
+     > Target TCs: {TC ID list}, error logs: {messages}
+     > **[Scope constraint]** Only modify files in the active Scope declaration.
+     > If you need to modify an out-of-scope file, stop and report to the orchestrator.
+   - **Test bug** → delegate via `delegate_task(subagent_type="deep")`:
+     > Fix only the **test code bug**. Never touch feature code or the scenario spec.
+     > Target TC: {TC ID}, bug: {Momus's reason}
+     > After fixing, have Momus re-verify assertion meaning preservation for this TC.
+     > If meaning preservation fails, count this as a retry and return to step 1 of this loop.
+4. Re-run tests after each fix.
+   - **If all TCs pass, exit the loop and proceed to PHASE 10.**
+5. **Escape condition**: If the **same TC ID has been retried more than 3 times**, mark it as an escape target and escalate via `ask_user_input_v0`:
+
+```
+⚠️  Self-correction loop escape — user intervention required
+─────────────────────────────────────
+Escaped TCs     : (TC IDs exceeding 3 retries)
+Last error      : (error message summary)
+Momus verdict   : (feature bug / test bug)
+Retry count     : (per TC)
+─────────────────────────────────────
+```
+
+- **Question**: "Auto-correction failed. How would you like to proceed?"
+- **Options**: `Continue excluding escaped TCs` / `Abort workflow`
+- If continue: add escaped TCs to the active Scope's exclude list and **resume the loop**. If no remaining failures, move to PHASE 10. Record unresolved failures explicitly in PHASE 11.
+- If abort: terminate the workflow.
+
+---
+
+## PHASE 10 — Refactor
+
+Delegate via `delegate_task(subagent_type="deep")` with:
+
+> Read the `/refactor` skill file first, then refactor following its guidelines.
+> Also remove all unused imports and variables across the source.
+> **[Scope constraint — strict]** Only refactor files listed in the File Scope section of `.sisyphus/plans/{keyword}.md`.
+> **Exclude test files** (the "Test output path" files) from refactoring — Momus's spec↔test validation is complete and modifying them risks corrupting assertion meaning.
+> If you find improvements needed in out-of-scope files, do NOT make changes — note them separately.
+> If an out-of-scope file modification is truly required, stop and report to the orchestrator. The orchestrator will request user approval via `ask_user_input_v0` before allowing it.
+> After refactoring, **re-run tests only if test code exists**. If not, skip this check.
+> **If any test fails, stop and report the failed TC list and error logs to the orchestrator.**
+
+If test failures are reported after refactoring, **re-enter the PHASE 9 self-correction loop**.
+Before re-entry, the orchestrator re-declares the active Scope:
+
+```
+🔁 PHASE 9 re-entry — Active Scope (refactored files only)
+   Modifiable files:
+     - {files actually modified during refactoring}
+   Out-of-scope: all files not in the list above (never modify)
+   TC counter  : reset to 0 (refactoring failures have different root causes)
+   Excluded TCs (cannot re-verify):
+     - {TC IDs escaped in PHASE 9 — "none" if none}
+     ※ If excluded TCs fail again, skip them and handle only the remaining TCs.
+```
+
+---
+
+## PHASE 11 — Save context memory
+
+Call `@document-writer` with:
+
+> Call the `memory-manager` skill to permanently store this session's work.
+> Record every item below without omission:
+>
+> - Core requirement summary for this task
+> - List of files created/modified with paths
+> - Tech stack applied and key design decisions
+> - Reused shared utilities (file path + import path)
+> - **Test execution**: if run, record pass/fail results; if skipped, record "tests not run"
+> - **Unresolved failures**: if any TCs were skipped via loop escape, record scenario IDs and last errors
+> - **Troubleshooting details**: for each issue encountered, record:
+>   - What mistake or error occurred and in what situation
+>   - Root cause
+>   - How it was resolved
+
+---
+
+## PHASE 12 — Record troubleshooting
+
+**[Pre-check]** Start only after PHASE 11 memory save is confirmed complete. PHASE 12 references PHASE 11's troubleshooting details to extract prevention rules — order must be guaranteed.
+
+Call `@document-writer` with:
+
+> Extract AI mistakes and incorrect implementations from this entire workflow and record them in `TROUBLE_SHOOT.md` at the project root.
+>
+> #### What to extract
+>
+> Record only these types — exclude normal design decisions or user requirement changes:
+> - Code incorrectly implemented by AI that required fixes
+> - Repeated error patterns in the self-correction loop
+> - Gaps or errors flagged by Metis or Momus
+> - Assertion translation errors found in spec↔test validation
+>
+> #### Format
+>
+> Write each item as below. Detailed problem/cause/fix info is in memory — do not duplicate it here.
+>
+> ```markdown
+> ## [YYYY-MM-DD] {task keyword}
+>
+> - {one-line rule or checkpoint to prevent recurrence}
+> - {add lines if multiple items}
+> ```
+>
+> #### File handling
+>
+> - If `TROUBLE_SHOOT.md` already exists, keep existing content and **prepend** the new entry.
+> - If it does not exist, create it.
+> - If there are no troubleshooting items from this workflow, skip this step.
+
+---
+
+## PHASE 13 — Final report
+
+Print the final report and terminate the workflow:
+
+```
+✅ /implement workflow complete
+
+📌 keyword          : {keyword}
+📋 plan             : .sisyphus/plans/{keyword}.md
+🧪 test scenarios   : .sisyphus/tests/{keyword}.md
+🧾 test code        : {test output path from Scope}  (n/a if skipped)
+🔍 spec↔test check  : done (n/a if skipped) / Momus fixes: {N or "none"}
+🔧 refactor         : done
+💾 memory saved     : done
+📝 troubleshooting  : done (skipped if nothing to record)
+
+All tasks completed successfully.
 ```
