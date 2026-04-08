@@ -670,8 +670,8 @@ Base — always included. Merge DB and option deps below.
     "express": "^5.1.0",
     "zod": "^4.3.6",
     // PostgreSQL: "@prisma/adapter-pg": "^7.4.2", "pg": "^8.19.0"
-    // MySQL:      "mysql2": "^3.14.0"
-    // SQLite:     (no additional deps — Prisma bundles SQLite driver)
+    // MySQL:      "@prisma/adapter-mariadb": "^7.4.1"
+    // SQLite:     "@prisma/adapter-better-sqlite3": "^7.4.1", "better-sqlite3": "^11.0.0"
     // Auth:       "bcrypt": "^6.0.0", "jose": "^6.1.0"
     // IP filter:  "ip-range-check": "^0.2.0"
   },
@@ -688,7 +688,7 @@ Base — always included. Merge DB and option deps below.
     "vitest": "^3.2.4",
     // PostgreSQL: "@types/pg": "^8.16.0"
     // Auth:       "@types/bcrypt": "^6.0.0"
-    // SQLite:     (no additional devDeps)
+    // SQLite:     "@types/better-sqlite3": "^7.6.0"
   },
 }
 ```
@@ -734,13 +734,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prodDeps = ["express", "cors", "dotenv", "jose", "ip-range-check", "zod"];
 
 // PostgreSQL: include '@prisma/adapter-pg', 'pg', 'pg-native'
-// MySQL:      include 'mysql2'
-// SQLite:     no additional externals — Prisma manages the driver internally
+// MySQL:      include '@prisma/adapter-mariadb'
+// SQLite:     include 'better-sqlite3' (native binary)
 const nativeModules = [
   "bcrypt",
   "pg",
   "pg-native",
-  "mysql2",
+  "better-sqlite3",
+  "@prisma/adapter-mariadb",
   "@prisma/adapter-pg",
   "prisma",
 ];
@@ -1015,6 +1016,9 @@ process.on("exit", async () => {
 ```typescript
 import "dotenv/config";
 import { PrismaClient } from "@/generated/client";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+
+const adapter = new PrismaMariaDb(process.env["DATABASE_URL"]!);
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -1023,10 +1027,11 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    adapter,
+    log: process.env["NODE_ENV"] === "development" ? ["error", "warn"] : ["error"],
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env["NODE_ENV"] !== "production") globalForPrisma.prisma = prisma;
 
 process.on("beforeExit", async () => {
   await prisma.$disconnect();
@@ -1043,6 +1048,11 @@ process.on("exit", async () => {
 ```typescript
 import "dotenv/config";
 import { PrismaClient } from "@/generated/client";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+
+const adapter = new PrismaBetterSqlite3({
+  url: process.env["DATABASE_URL"] ?? "file:./prisma/dev.db",
+});
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -1051,10 +1061,11 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    adapter,
+    log: process.env["NODE_ENV"] === "development" ? ["error", "warn"] : ["error"],
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env["NODE_ENV"] !== "production") globalForPrisma.prisma = prisma;
 
 process.on("beforeExit", async () => {
   await prisma.$disconnect();
@@ -1215,12 +1226,8 @@ git init
 git branch -M main
 ```
 
-If `git user.name` / `user.email` is not configured, notify the user and pause before committing.
-
-```bash
-git add .
-git commit -m "chore: initialize TypeScript Express API project\n\n- Add AGENTS.md, RULES.md, ARCHITECTURE.md\n- Scaffold DDD + Prisma project structure"
-```
+If `git user.name` / `user.email` is not configured, notify the user and record the warning.
+The initial commit will be requested in **PHASE 8** after verification and troubleshooting.
 
 ---
 
@@ -1267,7 +1274,40 @@ Call `@document-writer` with:
 
 ---
 
-## PHASE 8: Report
+## PHASE 8: Initial Commit ⚠️
+
+If `.git/` does not exist in the project root, skip this phase entirely.
+
+If `git user.name` / `user.email` was not configured, remind the user and skip.
+
+Present the following via `ask_user_input_v0`:
+
+```
+Verification and troubleshooting recording are complete.
+Proceed with the initial git commit?
+
+  Commit message:
+  "chore: initialize TypeScript Express API project
+
+  - Add AGENTS.md, RULES.md, ARCHITECTURE.md
+  - Scaffold DDD + Prisma project structure"
+
+  - Yes — run git commit now
+  - No  — skip commit (leave files untracked)
+```
+
+If the user selects **No**, record "commit skipped (user declined)" in the PHASE 9 report.
+
+If the user selects **Yes**:
+
+```bash
+git add .
+git commit -m "chore: initialize TypeScript Express API project\n\n- Add AGENTS.md, RULES.md, ARCHITECTURE.md\n- Scaffold DDD + Prisma project structure"
+```
+
+---
+
+## PHASE 9: Report
 
 ```
 AGENTS.md           : $ARGUMENTS/AGENTS.md ✅

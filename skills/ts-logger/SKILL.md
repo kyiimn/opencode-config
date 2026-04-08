@@ -93,8 +93,8 @@ function buildEntry(
   return {
     level,
     message,
-    context,
-    data: data === undefined ? undefined : data,
+    ...(context !== undefined && { context }),
+    ...(data !== undefined && { data }),
     timestamp: new Date().toISOString(),
   };
 }

@@ -603,12 +603,8 @@ git init
 git branch -M main
 ```
 
-If `git user.name` / `user.email` is not configured, notify the user and pause before committing.
-
-```bash
-git add .
-git commit -m "chore: initialize TypeScript project\n\n- Add AGENTS.md, RULES.md, ARCHITECTURE.md\n- Scaffold empty TypeScript structure"
-```
+If `git user.name` / `user.email` is not configured, notify the user and record the warning.
+The initial commit will be requested in **PHASE 13: Initial Commit** after verification and troubleshooting.
 
 ---
 
@@ -655,7 +651,40 @@ Call `@document-writer` with:
 
 ---
 
-## PHASE 13: Completion Report
+## PHASE 13: Initial Commit ⚠️
+
+If `.git/` does not exist in the project root, skip this phase entirely.
+
+If `git user.name` / `user.email` was not configured, remind the user and skip.
+
+Present the following via `ask_user_input_v0`:
+
+```
+Verification and troubleshooting recording are complete.
+Proceed with the initial git commit?
+
+  Commit message:
+  "chore: initialize TypeScript project
+
+  - Add AGENTS.md, RULES.md, ARCHITECTURE.md
+  - Scaffold empty TypeScript structure"
+
+  - Yes — run git commit now
+  - No  — skip commit (leave files untracked)
+```
+
+If the user selects **No**, record "commit skipped (user declined)" in the PHASE 14 report.
+
+If the user selects **Yes**:
+
+```bash
+git add .
+git commit -m "chore: initialize TypeScript project\n\n- Add AGENTS.md, RULES.md, ARCHITECTURE.md\n- Scaffold empty TypeScript structure"
+```
+
+---
+
+## PHASE 14: Completion Report
 
 ```
 AGENTS.md saved          : $ARGUMENTS/AGENTS.md ✅

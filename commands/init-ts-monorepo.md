@@ -82,10 +82,30 @@ Import via package name. Never use relative paths across package boundaries.
 ```jsonc
 // Each package's tsconfig.json
 { "extends": "@{scope}/core/tsconfig/app.json" }
+```
 
+```javascript
 // Each package's eslint.config.js
 import base from '@{scope}/core/eslint/node.js';
-export default [...base];
+
+export default [
+  ...base,
+  {
+    // projectService must point to THIS package's tsconfig.json.
+    files: ["**/*.ts"],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    // Config files at package root (vitest.config.ts, vite.config.ts, etc.)
+    // are outside tsconfig include — exclude them to prevent projectService errors.
+    ignores: ["dist/", "eslint.config.js", "vitest.config.ts", "vite.config.ts"],
+  },
+];
 ```
 
 ---
@@ -199,6 +219,8 @@ Fill `{FILE_NAMING}`, `{CLASS_NAMING}`, `{INTERFACE_NAMING}`, `{METHOD_NAMING}`,
 - `async/await` — no callbacks
 - Always throw errors to upper layers
 - Narrow types (union, literal types)
+- Use conditional spread when building objects with optional properties:
+  `{ ...value !== undefined && { key: value } }` — required by `exactOptionalPropertyTypes`
 
 ### Don't
 
@@ -207,6 +229,7 @@ Fill `{FILE_NAMING}`, `{CLASS_NAMING}`, `{INTERFACE_NAMING}`, `{METHOD_NAMING}`,
 - No `// TODO` without a commit
 - No new packages without user approval
 - No `any`
+- Do not assign `undefined` explicitly to optional properties — use conditional spread instead
 
 ---
 
@@ -450,29 +473,90 @@ auto-install-peers=true
 ```javascript
 import tseslint from "typescript-eslint";
 
-export default tseslint.config(...tseslint.configs.strictTypeChecked, {
+// Type-checked rules applied only to TypeScript source files.
+// Each consuming package must add parserOptions with projectService
+// in its own eslint.config.js (see packages/core/eslint.config.js for reference).
+const tsFiles = tseslint.config({
+  files: ["**/*.ts", "**/*.tsx"],
+  extends: [...tseslint.configs.strictTypeChecked],
   rules: {
     "@typescript-eslint/no-explicit-any": "error",
     "@typescript-eslint/explicit-function-return-type": "warn",
   },
 });
+
+// Non-type-checked rules for JS config files (eslint.config.js, vite.config.js, etc.).
+// strictTypeChecked must NOT apply here — those rules require type information.
+const jsFiles = tseslint.config({
+  files: ["**/*.{js,mjs,cjs}"],
+  extends: [...tseslint.configs.strict],
+  rules: {
+    "@typescript-eslint/no-explicit-any": "error",
+  },
+});
+
+export default [...tsFiles, ...jsFiles];
 ```
 
 **10. `packages/core/eslint/react.js`**
 
 ```javascript
 import base from "./index.js";
-export default [...base, { rules: {} }];
+
+// Extend with React-specific rules here.
+export default [...base];
 ```
 
 **11. `packages/core/eslint/node.js`**
 
 ```javascript
 import base from "./index.js";
-export default [...base, { rules: {} }];
+
+// Extend with Node.js-specific rules here.
+export default [...base];
 ```
 
-**12. `packages/core/vitest.config.ts`**
+**12. `packages/core/tsconfig.json`**
+
+> Core 패키지 자체의 `tsc --noEmit` 및 ESLint `projectService` 를 위해 필요합니다.
+
+```jsonc
+{
+  "extends": "./tsconfig/base.json",
+  "include": ["src/**/*.ts"]
+}
+```
+
+**13. `packages/core/eslint.config.js`**
+
+> Core 패키지는 자기 자신(`@{scope}/core`)을 self-reference 할 수 없으므로 반드시 상대 경로를 사용합니다.
+
+```javascript
+import nodeConfig from "./eslint/node.js";
+
+export default [
+  ...nodeConfig,
+  {
+    // parserOptions must be set per-package so projectService resolves
+    // the correct tsconfig.json relative to THIS package root.
+    files: ["**/*.ts"],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    // Exclude root-level TS config files from projectService parsing.
+    // These files are outside tsconfig.json's `include` and will cause
+    // "parserOptions.project" errors if linted with type-checked rules.
+    ignores: ["dist/", "eslint.config.js", "vitest.config.ts", "vite.config.ts"],
+  },
+];
+```
+
+**14. `packages/core/vitest.config.ts`**
 
 ```typescript
 import { defineConfig } from "vitest/config";
@@ -489,7 +573,7 @@ export default defineConfig({
 });
 ```
 
-**13. `packages/core/src/index.ts`**
+**15. `packages/core/src/index.ts`**
 
 ```typescript
 // Export shared types and utilities from this entry point only.
@@ -500,7 +584,7 @@ export * from './lib/logger.js';
 > `packages/core/src/lib/logger.ts` 는 `ts-logger` 스킬이 생성합니다.
 > PHASE 3 파일 생성 직후 `ts-logger` 스킬을 monorepo 모드로 호출하세요.
 
-**14. `packages/core/src/index.test.ts`**
+**16. `packages/core/src/index.test.ts`**
 
 ```typescript
 import { describe, it, expect } from "vitest";
@@ -512,9 +596,9 @@ describe("packages/core smoke test", () => {
 });
 ```
 
-**15. `apps/.gitkeep`** — empty file to track directory
+**17. `apps/.gitkeep`** — empty file to track directory
 
-**16. `.gitignore`** — skip if already exists
+**18. `.gitignore`** — skip if already exists
 
 ```
 node_modules/
@@ -536,16 +620,8 @@ git init
 git branch -M main
 ```
 
-If `git user.name` / `user.email` is not set, notify user and pause before committing.
-
-```bash
-git add .
-git commit -m "chore: initialize pnpm monorepo workspace
-
-- Add pnpm-workspace.yaml with apps/* and packages/* globs
-- Add packages/core with tsconfig, eslint, vitest shared configs
-- Add AGENTS.md, RULES.md"
-```
+If `git user.name` / `user.email` is not set, notify user and record the warning.
+The initial commit will be requested in **PHASE 7: Initial Commit** after verification and troubleshooting.
 
 ---
 
@@ -592,7 +668,45 @@ Call `@document-writer` with:
 
 ---
 
-## PHASE 7: Report
+## PHASE 7: Initial Commit ⚠️
+
+If `.git/` does not exist in the project root, skip this phase entirely.
+
+If `git user.name` / `user.email` was not configured, remind the user and skip.
+
+Present the following via `ask_user_input_v0`:
+
+```
+Verification and troubleshooting recording are complete.
+Proceed with the initial git commit?
+
+  Commit message:
+  "chore: initialize pnpm monorepo workspace
+
+  - Add pnpm-workspace.yaml with apps/* and packages/* globs
+  - Add packages/core with tsconfig, eslint, vitest shared configs
+  - Add AGENTS.md, RULES.md"
+
+  - Yes — run git commit now
+  - No  — skip commit (leave files untracked)
+```
+
+If the user selects **No**, record "commit skipped (user declined)" in the PHASE 8 report.
+
+If the user selects **Yes**:
+
+```bash
+git add .
+git commit -m "chore: initialize pnpm monorepo workspace
+
+- Add pnpm-workspace.yaml with apps/* and packages/* globs
+- Add packages/core with tsconfig, eslint, vitest shared configs
+- Add AGENTS.md, RULES.md"
+```
+
+---
+
+## PHASE 8: Report
 
 ```
 AGENTS.md / RULES.md  : ./AGENTS.md, ./RULES.md ✅
