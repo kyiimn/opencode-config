@@ -6,6 +6,8 @@ You are the orchestrator. Execute the workflow below **in order, without interru
 Print `▶ PHASE N start` at the beginning of each step and `✅ PHASE N done` upon completion.
 Never skip or reorder steps.
 
+After printing `✅ PHASE N done`, immediately mark that PHASE as complete in the plan file by changing its checkbox from `[ ]` to `[x]` in the **PHASE Checklist** section of `.sisyphus/plans/{keyword}.md`. This updates the boulder progress tracker. If the plan file does not yet exist (PHASEs 0–1), perform the mark as soon as the file is created.
+
 ---
 
 ## Pre-flight — Declare keyword
@@ -23,6 +25,24 @@ Print:
    plan     : .sisyphus/plans/{keyword}.md
    scenarios: .sisyphus/tests/{keyword}.md
 ```
+
+After declaring keyword, initialize or resume boulder state:
+
+- Read `.sisyphus/boulder.json` if it exists.
+  - If `plan_name` matches the current keyword → **resume mode**: print `🔁 Resuming: {keyword}`, read the plan file's checkbox list to identify completed PHASEs, skip those PHASEs and continue from the first unchecked one.
+  - If `plan_name` differs → a different task is active. Print a warning and proceed as a new session (overwrite).
+- If the file does not exist → **new session**: create `.sisyphus/boulder.json` with the structure below. Use the current working directory as the absolute path base. Obtain the session ID from the environment if available; otherwise use `"unknown"`.
+
+```json
+{
+  "active_plan": "{absolute path to .sisyphus/plans/{keyword}.md}",
+  "plan_name": "{keyword}",
+  "started_at": "{ISO 8601 timestamp}",
+  "session_ids": ["{current session ID}"]
+}
+```
+
+Append the current session ID to `session_ids` on every run (avoid duplicates).
 
 ---
 
@@ -63,6 +83,29 @@ Call `@prometheus` with:
 >
 > ### Deliverable — `.sisyphus/plans/{keyword}.md`
 >
+> The plan file must begin with a **PHASE checklist** section before any other content.
+> This checklist is the progress tracker read by the boulder state system (`getPlanProgress`).
+>
+> ```markdown
+> ## PHASE Checklist
+>
+> - [ ] PHASE 0: Load project context
+> - [ ] PHASE 1: Write implementation plan
+> - [ ] PHASE 2: Write test scenarios
+> - [ ] PHASE 3: Cross-validate plan and scenarios
+> - [ ] PHASE 4: Confirm implementation
+> - [ ] PHASE 5: Implement code
+> - [ ] PHASE 6: Confirm test generation
+> - [ ] PHASE 7: Write test code
+> - [ ] PHASE 8: Validate spec↔test translation
+> - [ ] PHASE 9: Run tests and self-correction loop
+> - [ ] PHASE 10: Refactor
+> - [ ] PHASE 11: Save context memory
+> - [ ] PHASE 12: Record troubleshooting
+> - [ ] PHASE 13: Final report
+> ```
+>
+> After the checklist, write the detailed implementation plan:
 > - Write a detailed plan including function names, major logic flows, and dependency relationships.
 > - Use Librarian/Explore to find reusable utilities in the codebase first; document the reuse plan.
 > - **Do NOT write any code (implementation or test) at this step.**
@@ -225,6 +268,8 @@ Call `@metis` with:
 ---
 
 ## PHASE 4 — Confirm implementation (User Confirmation)
+
+**[Notepad init]** Ensure `.sisyphus/notepads/{keyword}/` directory exists. After each major decision or discovery in this workflow, append a brief note to `.sisyphus/notepads/{keyword}/notes.md` (architectural decisions, edge cases found, risks identified). On resume, read this file first to regain situational awareness.
 
 **[Compact context]** Before entering this step, summarize PHASE 0–3 logs in the format below, then immediately run `/compact` to remove the raw logs from context. Pass the summary block as the compaction hint so it remains accessible in later steps.
 

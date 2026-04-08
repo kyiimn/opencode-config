@@ -10,6 +10,15 @@ Initialize a TypeScript pnpm monorepo: generate AGENTS.md / RULES.md → scaffol
 
 Check whether `.git/` exists (used in PHASE 4 to decide if `git init` is needed).
 
+**Abort condition:** If `apps/` or `packages/` already contain subdirectories (other than `packages/core`), stop immediately and report:
+
+```
+ERROR: Non-empty workspace detected.
+  Found existing packages in apps/ or packages/.
+  init-ts-monorepo only initializes greenfield monorepos.
+  Use init-ts-api / init-ts-cli / init-ts-react to add packages to an existing monorepo.
+```
+
 ---
 
 ## PHASE 1: Collect conventions
@@ -122,15 +131,15 @@ Load `RULES.md` before running `/implement`. Never start without it.
 
 Load only the relevant section anchor:
 
-| When                 | Section                   |
-| -------------------- | ------------------------- |
-| Writing/editing code | `RULES.md#code-standards` |
-| API development      | `RULES.md#api`            |
-| Frontend development | `RULES.md#frontend`       |
-| CLI development      | `RULES.md#cli`            |
-| Shared library       | `RULES.md#shared`         |
-| DB schema            | `prisma/schema.prisma`    |
-| Env vars             | `.env.example`            |
+| When                 | Section                                  |
+| -------------------- | ---------------------------------------- |
+| Writing/editing code | `RULES.md#code-standards`                |
+| Using the logger     | `RULES.md#logger`                        |
+| API structure/layers | package `ARCHITECTURE.md`                |
+| Frontend structure   | package `ARCHITECTURE.md`                |
+| CLI structure        | package `ARCHITECTURE.md`                |
+| DB schema            | `prisma/schema.prisma`                   |
+| Env vars             | `.env.example`                           |
 ````
 
 ### 2-2. `./RULES.md`
@@ -143,6 +152,7 @@ Fill `{FILE_NAMING}`, `{CLASS_NAMING}`, `{INTERFACE_NAMING}`, `{METHOD_NAMING}`,
 > Load on demand. Use section anchors — do not read the entire file at once.
 
 - [`#code-standards`](#code-standards) — TypeScript · naming · bundling · Do/Don't
+- [`#logger`](#logger) — Logger import paths · level rules · Do/Don't
 
 ---
 
@@ -196,6 +206,49 @@ Fill `{FILE_NAMING}`, `{CLASS_NAMING}`, `{INTERFACE_NAMING}`, `{METHOD_NAMING}`,
 - No `// TODO` without a commit
 - No new packages without user approval
 - No `any`
+
+---
+
+## LOGGER {#logger}
+
+All packages in this monorepo share the logger from `@{scope}/core`.
+No source scan is needed — import paths and level rules are fixed.
+
+### Import
+
+```typescript
+// Named logger — recommended for any class or module
+import { createLogger } from '@{scope}/core';
+const logger = createLogger('FeatureName');
+
+// Default logger — for one-off scripts or simple entry points
+import { logger } from '@{scope}/core';
+```
+
+### Levels
+
+| Level | When to use |
+|-------|-------------|
+| `debug` | Internal state, query params, tracing — **suppressed in production** |
+| `log` | Normal lifecycle events (server start, job complete, request handled) |
+| `warn` | Unexpected but recoverable situation (retry, fallback, deprecation) |
+| `error` | Exception, external service failure, unrecoverable error |
+
+### Usage
+
+```typescript
+logger.debug('Query params', { filter, page });   // dev only
+logger.log('User created', { id: user.id });
+logger.warn('Retry attempt', { attempt, maxRetries });
+logger.error('Payment failed', error);
+```
+
+### Do / Don't
+
+- **Do** call `createLogger('ContextName')` once at the top of each file
+- **Do** pass structured data as the second argument instead of string interpolation
+- **Don't** use `console.log`, `console.warn`, or `console.error` anywhere in application code
+- **Don't** log sensitive data (passwords, tokens, PII) at any level
 ```
 
 ### 2-3. Save paths
@@ -331,7 +384,7 @@ auto-install-peers=true
 ```javascript
 import tseslint from "typescript-eslint";
 
-export default tseslint.config(...tseslint.configs.recommendedTypeChecked, {
+export default tseslint.config(...tseslint.configs.strictTypeChecked, {
   rules: {
     "@typescript-eslint/no-explicit-any": "error",
     "@typescript-eslint/explicit-function-return-type": "warn",
@@ -375,7 +428,11 @@ export default defineConfig({
 ```typescript
 // Export shared types and utilities from this entry point only.
 // Never import across package boundaries via relative paths.
+export * from './lib/logger.js';
 ```
+
+> `packages/core/src/lib/logger.ts` 는 `ts-logger` 스킬이 생성합니다.
+> PHASE 3 파일 생성 직후 `ts-logger` 스킬을 monorepo 모드로 호출하세요.
 
 **14. `packages/core/src/index.test.ts`**
 
