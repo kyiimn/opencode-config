@@ -153,6 +153,7 @@ Fill `{FILE_NAMING}`, `{CLASS_NAMING}`, `{INTERFACE_NAMING}`, `{METHOD_NAMING}`,
 
 - [`#code-standards`](#code-standards) — TypeScript · naming · bundling · Do/Don't
 - [`#logger`](#logger) — Logger import paths · level rules · Do/Don't
+- [`#bigint-json`](#bigint-json) — BigInt-safe JSON · Express middleware · fetch wrapper
 
 ---
 
@@ -249,6 +250,71 @@ logger.error('Payment failed', error);
 - **Do** pass structured data as the second argument instead of string interpolation
 - **Don't** use `console.log`, `console.warn`, or `console.error` anywhere in application code
 - **Don't** log sensitive data (passwords, tokens, PII) at any level
+---
+
+## BIGINT JSON {#bigint-json}
+
+> Apply when any Prisma column or API field uses the `BigInt` type.
+> Run the `ts-bigint-json` skill to generate the implementation files.
+
+`JSON.stringify` throws `TypeError` on `bigint` values; `JSON.parse` never produces `bigint`.
+All BigInt ↔ JSON serialization must go through `bigintJson` — never use native `JSON.*` directly.
+
+### Wire format
+
+`{ "__bigint__": "9007199254740993" }` — tagged object, lossless, portable to any JSON client.
+
+### Import
+
+```typescript
+import { bigintJson } from '@{scope}/core';
+```
+
+### Stringify / Parse
+
+```typescript
+const body = bigintJson.stringify({ id: 9007199254740993n, name: 'Alice' });
+// → '{"id":{"__bigint__":"9007199254740993"},"name":"Alice"}'
+
+const data = bigintJson.parse<{ id: bigint; name: string }>(body);
+// → { id: 9007199254740993n, name: 'Alice' }
+```
+
+### API Server — Express
+
+Replace `express.json()` with `bigintJsonMiddleware()` in `app.ts`:
+
+```typescript
+import { bigintJsonMiddleware } from '@/common/infrastructure/http/bigint-json.middleware';
+
+// replaces: app.use(express.json())
+app.use(bigintJsonMiddleware());
+```
+
+### Client — Frontend / CLI
+
+```typescript
+import { bigintFetch } from '@/lib/bigint-fetch';
+import { bigintJson } from '@{scope}/core';
+
+// GET — response body deserialized with bigintJson.parse
+const user = await bigintFetch<User>('/api/users/1');
+
+// POST — body serialized with bigintJson.stringify
+const order = await bigintFetch<Order>('/api/orders', {
+  method: 'POST',
+  body: bigintJson.stringify({ productId: 1n, quantity: 2n }),
+});
+```
+
+### Do / Don't
+
+- **Do** use `bigintJson.stringify` / `.parse` for any payload that may contain `bigint`
+- **Do** use `bigintJsonMiddleware()` in the Express app instead of `express.json()`
+- **Do** use `bigintFetch()` on the client side for endpoints that return BigInt fields
+- **Don't** use native `JSON.stringify` / `JSON.parse` for API payloads containing BigInt
+- **Don't** cast `bigint` to `Number` — values > 2^53 − 1 lose precision silently
+- **Don't** use `.toString()` inline as a workaround — it breaks downstream type contracts
 ```
 
 ### 2-3. Save paths
@@ -498,7 +564,35 @@ Report immediately if any command is missing or fails.
 
 ---
 
-## PHASE 6: Report
+## PHASE 6: Record troubleshooting
+
+Call `@document-writer` with:
+
+> Extract AI mistakes and incorrect implementations from this entire workflow and record them in `TROUBLE_SHOOT.md` at the project root.
+>
+> **What to extract** — record only these types (exclude normal design decisions or user requirement changes):
+> - Code incorrectly implemented by AI that required fixes
+> - Repeated error patterns in the self-correction loop
+> - Gaps or errors flagged by Metis or Momus
+> - Assertion translation errors found in spec↔test validation
+>
+> **Format** — write each item as:
+>
+> ```markdown
+> ## [YYYY-MM-DD] {task keyword}
+>
+> - {one-line rule or checkpoint to prevent recurrence}
+> - {add lines if multiple items}
+> ```
+>
+> **File handling:**
+> - If `TROUBLE_SHOOT.md` already exists — keep existing content and prepend the new entry
+> - If it does not exist — create it
+> - If there are no troubleshooting items from this workflow — skip this step
+
+---
+
+## PHASE 7: Report
 
 ```
 AGENTS.md / RULES.md  : ./AGENTS.md, ./RULES.md ✅

@@ -37,12 +37,11 @@ After declaring keyword, initialize or resume boulder state:
 {
   "active_plan": "{absolute path to .sisyphus/plans/{keyword}.md}",
   "plan_name": "{keyword}",
-  "started_at": "{ISO 8601 timestamp}",
-  "session_ids": ["{current session ID}"]
+  "started_at": "{ISO 8601 timestamp}"
 }
 ```
 
-Append the current session ID to `session_ids` on every run (avoid duplicates).
+
 
 ---
 
@@ -370,21 +369,31 @@ Call `ask_user_input_v0`:
 
 If user chose Y, delegate via `delegate_task(subagent_type="business-logic")` with:
 
-> Read `.sisyphus/tests/{keyword}.md` and write test code with 1:1 mapping to each TC-NNN.
+> Read `.sisyphus/tests/{keyword}.md` and create **one test file per TC-NNN**.
 >
 > **⚠️ Implementation isolation**: Do NOT open or read the new/modified files listed in the Scope section of `.sisyphus/plans/{keyword}.md`.
 > Write tests based solely on the `Expected results (pseudo-assertions)` in the spec.
 > Referencing implementation internals (function signatures, class structure, variable names) ties tests to implementation and violates SDV.
 >
 > **[Required constraints]**
-> - Save test files to the path in the "Test output path" of the Scope section.
-> - Add the corresponding scenario ID as a comment at the top of each test case:
+> - Create one file per TC: `{test output path}/TC-NNN.test.ts` (e.g. `TC-001.test.ts`, `TC-002.test.ts`).
+>   Each file contains **only that one TC**. Never bundle multiple TCs in one file.
+> - Add the scenario ID and title as a comment at the top of each file:
 >   ```
 >   // TC-001: Normal user creation
 >   ```
 > - Translate `assert A === B` to `expect(A).toBe(B)` or the equivalent framework assertion.
 >   Do NOT change the **meaning** of assertions. Translation is purely syntactic.
+> - Each file must be independently runnable — include all necessary imports and setup.
 > - **Do NOT run tests yet.** Writing only.
+> - After writing all files, report the TC list to the orchestrator:
+>   ```
+>   [PHASE 7 report]
+>   TC files written:
+>     - TC-001.test.ts: Normal user creation
+>     - TC-002.test.ts: ...
+>   Total: N files
+>   ```
 
 ---
 
@@ -392,14 +401,14 @@ If user chose Y, delegate via `delegate_task(subagent_type="business-logic")` wi
 
 Immediately after test writing completes, call `@momus` with:
 
-> Read `.sisyphus/tests/{keyword}.md` and the test files at the Scope's test output path side by side.
-> Verify that every pseudo-assertion was translated accurately, per TC-NNN.
+> Read `.sisyphus/tests/{keyword}.md` and verify each `TC-NNN.test.ts` file in the test output path one by one.
+> For each TC file, verify that every pseudo-assertion was translated accurately.
 >
 > #### Validation criteria
 >
-> For each TC, judge:
+> For each TC-NNN, judge:
 >
-> 1. **1:1 coverage**: Does every TC-NNN have a corresponding test case? List any missing TCs immediately.
+> 1. **File existence**: Does `TC-NNN.test.ts` exist for every TC-NNN in the spec? List any missing files immediately.
 >
 > 2. **Assertion meaning preserved**: Is each `assert` item logically identical to the test code assertion?
 >    Find these error types:
@@ -417,11 +426,11 @@ Immediately after test writing completes, call `@momus` with:
 >   [TC-NNN] Error type: {value error | direction error | target error | omission}
 >   Spec : assert response.status === 200
 >   Code : expect(response.status).toBe(201)
->   Fix  : Update test code to match spec
+>   Fix  : Update TC-NNN.test.ts to match spec
 >   ```
-> - Fix test code directly. **Never modify `.sisyphus/tests/{keyword}.md`.**
-> - Re-verify each fixed TC.
-> - Declare "Spec↔test translation validated" only when all TCs pass.
+> - Fix the individual `TC-NNN.test.ts` file directly. **Never modify `.sisyphus/tests/{keyword}.md`.**
+> - Re-verify each fixed TC file.
+> - Declare "Spec↔test translation validated" only when all TC files pass.
 > - **If any fixes were made**, report to the orchestrator:
 >   ```
 >   [Momus fix report]
@@ -452,60 +461,78 @@ After PHASE 8, the orchestrator prints and proceeds to PHASE 9:
   Implemented files : {file list}
   JSDoc fixes       : {file list or "none"}
   Momus fix summary : {fixed TC list and types or "no fixes"}
+  TC files          : {TC-001 ~ TC-NNN, total N}
 ```
 
-After Momus's validation, the orchestrator declares the **active Scope**:
+The orchestrator declares the **active Scope** and **TC queue**:
 
 ```
 ▶ PHASE 9 entry — Active Scope
    Modifiable files:
      - {new files + allowed modifications from Scope section}
    Test output path: {from Scope section}
-   Excluded TCs: none
+   TC queue        : [TC-001, TC-002, ..., TC-NNN]  ← process in order
+   Passed TCs      : []
+   Failed TCs      : []
+   Excluded TCs    : []
+   Retry counters  : {}
 ```
 
-Use this declared Scope for all Momus calls and `delegate_task` instructions within this step.
+**Sequential TC execution — process one TC at a time:**
 
-Run the tests.
+For each TC in the queue (in order), repeat the following cycle:
 
-- **If all TCs pass, proceed to PHASE 10 immediately.**
-- If failures occur, follow the self-correction loop below.
+1. Run **only** `TC-NNN.test.ts` for the current TC.
+   - **If it passes**: add to Passed TCs, print `✅ TC-NNN passed`, move to the next TC.
+   - **If it fails**: go to step 2.
 
-**Self-correction loop:**
-
-1. Collect failed TC list and error logs.
 2. Call `@momus` with:
-   > These TCs failed during test execution. Compare against `.sisyphus/tests/{keyword}.md` spec and classify each as **"feature bug"** or **"test bug"**. State the reason for each judgment.
-   > Failed TCs and error logs: {list}
+   > `TC-NNN.test.ts` failed. Compare the failure against the spec in `.sisyphus/tests/{keyword}.md`.
+   > Classify as **"feature bug"** or **"test bug"** and state the reason.
+   > Error log: {error}
+
 3. Branch on Momus's verdict:
    - **Feature bug** → delegate via `delegate_task(subagent_type="deep")`:
-     > Fix only the **feature code** causing the test failure. Never touch test code.
-     > Target TCs: {TC ID list}, error logs: {messages}
+     > Fix only the **feature code** causing `TC-NNN` to fail. Do not touch `TC-NNN.test.ts`.
+     > Error: {message}
      > **[Scope constraint]** Only modify files in the active Scope declaration.
-     > If you need to modify an out-of-scope file, stop and report to the orchestrator.
+     > If you need an out-of-scope file, stop and report to the orchestrator.
    - **Test bug** → delegate via `delegate_task(subagent_type="deep")`:
-     > Fix only the **test code bug**. Never touch feature code or the scenario spec.
-     > Target TC: {TC ID}, bug: {Momus's reason}
-     > After fixing, have Momus re-verify assertion meaning preservation for this TC.
-     > If meaning preservation fails, count this as a retry and return to step 1 of this loop.
-4. Re-run tests after each fix.
-   - **If all TCs pass, exit the loop and proceed to PHASE 10.**
-5. **Escape condition**: If the **same TC ID has been retried more than 3 times**, mark it as an escape target and escalate via `ask_user_input_v0`:
+     > Fix only the bug in `TC-NNN.test.ts`. Do not touch feature code or the scenario spec.
+     > Bug: {Momus's reason}
+     > After fixing, Momus will re-verify assertion meaning preservation.
+     > If meaning preservation fails, count this as a retry and return to step 1.
+
+4. Re-run `TC-NNN.test.ts` only.
+   - If it passes: add to Passed TCs, print `✅ TC-NNN passed`, move to the next TC.
+   - If it fails: increment retry counter for this TC and return to step 2.
+
+5. **Escape condition**: If the **retry counter for TC-NNN exceeds 3**, mark it as escaped and escalate via `ask_user_input_v0`:
 
 ```
-⚠️  Self-correction loop escape — user intervention required
+⚠️  TC escape — user intervention required
 ─────────────────────────────────────
-Escaped TCs     : (TC IDs exceeding 3 retries)
-Last error      : (error message summary)
-Momus verdict   : (feature bug / test bug)
-Retry count     : (per TC)
+TC          : TC-NNN
+Last error  : (error message summary)
+Momus verdict: (feature bug / test bug)
+Retry count : 3
 ─────────────────────────────────────
 ```
 
-- **Question**: "Auto-correction failed. How would you like to proceed?"
-- **Options**: `Continue excluding escaped TCs` / `Abort workflow`
-- If continue: add escaped TCs to the active Scope's exclude list and **resume the loop**. If no remaining failures, move to PHASE 10. Record unresolved failures explicitly in PHASE 11.
+- **Question**: "TC-NNN auto-correction failed. How would you like to proceed?"
+- **Options**: `Skip this TC and continue` / `Abort workflow`
+- If skip: add TC-NNN to Excluded TCs and move to the next TC. Record in PHASE 11.
 - If abort: terminate the workflow.
+
+**When all TCs in the queue are processed** (passed or excluded), print the summary and proceed to PHASE 10:
+
+```
+📊 PHASE 9 summary
+─────────────────────────────────────
+Passed  : {TC list}
+Excluded: {TC list or "none"}
+─────────────────────────────────────
+```
 
 ---
 
@@ -519,21 +546,23 @@ Delegate via `delegate_task(subagent_type="deep")` with:
 > **Exclude test files** (the "Test output path" files) from refactoring — Momus's spec↔test validation is complete and modifying them risks corrupting assertion meaning.
 > If you find improvements needed in out-of-scope files, do NOT make changes — note them separately.
 > If an out-of-scope file modification is truly required, stop and report to the orchestrator. The orchestrator will request user approval via `ask_user_input_v0` before allowing it.
-> After refactoring, **re-run tests only if test code exists**. If not, skip this check.
-> **If any test fails, stop and report the failed TC list and error logs to the orchestrator.**
+> After refactoring, **re-run each `TC-NNN.test.ts` sequentially** (only if test code exists). Skip excluded TCs from PHASE 9 automatically.
+> If not, skip this check.
+> **If any TC fails, stop and report the failed TC ID and error log to the orchestrator.**
 
-If test failures are reported after refactoring, **re-enter the PHASE 9 self-correction loop**.
-Before re-entry, the orchestrator re-declares the active Scope:
+If test failures are reported after refactoring, **re-enter the PHASE 9 sequential TC loop**.
+Before re-entry, the orchestrator re-declares the active Scope and resets the TC queue:
 
 ```
 🔁 PHASE 9 re-entry — Active Scope (refactored files only)
    Modifiable files:
      - {files actually modified during refactoring}
    Out-of-scope: all files not in the list above (never modify)
-   TC counter  : reset to 0 (refactoring failures have different root causes)
+   TC queue     : [TC-001, TC-002, ..., TC-NNN]  ← full queue, re-run all
+   TC counter   : reset to 0 (refactoring failures have different root causes)
    Excluded TCs (cannot re-verify):
      - {TC IDs escaped in PHASE 9 — "none" if none}
-     ※ If excluded TCs fail again, skip them and handle only the remaining TCs.
+     ※ If excluded TCs fail again, skip them automatically without escalation.
 ```
 
 ---
@@ -605,6 +634,8 @@ Print the final report and terminate the workflow:
 🧪 test scenarios   : .sisyphus/tests/{keyword}.md
 🧾 test code        : {test output path from Scope}  (n/a if skipped)
 🔍 spec↔test check  : done (n/a if skipped) / Momus fixes: {N or "none"}
+🧪 test results     : passed {N} / excluded {N} / total {N}  (n/a if skipped)
+                      excluded: {TC ID list or "none"}
 🔧 refactor         : done
 💾 memory saved     : done
 📝 troubleshooting  : done (skipped if nothing to record)

@@ -236,6 +236,7 @@ Fill in `{placeholders}` from the values resolved in PHASE 2A or PHASE 2B.
 - [`#code-standards`](#code-standards) — TypeScript · naming · Do/Don't
 - [`#cli`](#cli) — CLI command structure and rules
 - [`#logger`](#logger) — Logger import paths · level rules · Do/Don't
+- [`#bigint-json`](#bigint-json) — BigInt-safe JSON · fetch wrapper
 
 > Build toolchain and execution model → [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 
@@ -337,6 +338,53 @@ logger.error('File write failed', error);
 - **Don't** use `console.log`, `console.warn`, or `console.error` in application code
   (exception: `process.stdout.write` / `process.stderr.write` for raw CLI output is fine)
 - **Don't** log sensitive data (tokens, credentials, PII) at any level
+---
+
+## BIGINT JSON {#bigint-json}
+
+> Apply when any API endpoint returns Prisma `BigInt` fields.
+> Run the `ts-bigint-json` skill to generate the implementation files.
+
+`JSON.stringify` throws `TypeError` on `bigint` values; `JSON.parse` never produces `bigint`.
+All BigInt ↔ JSON serialization must go through `bigintJson` — never use native `JSON.*` directly.
+
+### Wire format
+
+`{ "__bigint__": "9007199254740993" }` — tagged object, lossless, portable to any JSON client.
+
+### Import
+
+```typescript
+// monorepo
+import { bigintJson } from '@{scope}/core';
+
+// standalone
+import { bigintJson } from '@/lib/bigint-json';
+```
+
+### Fetch wrapper
+
+```typescript
+import { bigintFetch } from '@/lib/bigint-fetch';
+import { bigintJson } from '@/lib/bigint-json'; // or @{scope}/core
+
+// GET — response body deserialized with bigintJson.parse
+const user = await bigintFetch<User>('/api/users/1');
+
+// POST — body serialized with bigintJson.stringify
+const order = await bigintFetch<Order>('/api/orders', {
+  method: 'POST',
+  body: bigintJson.stringify({ productId: 1n, quantity: 2n }),
+});
+```
+
+### Do / Don't
+
+- **Do** use `bigintFetch()` for all API calls to endpoints that return BigInt fields
+- **Do** use `bigintJson.stringify` when building request bodies that contain `bigint`
+- **Don't** use native `fetch` + `response.json()` for endpoints that return BigInt fields
+- **Don't** cast `bigint` to `Number` — values > 2^53 − 1 lose precision silently
+- **Don't** use `.toString()` inline as a workaround — it breaks downstream type contracts
 ```
 
 ---
@@ -588,7 +636,29 @@ describe('{dir-name} smoke test', () => {
 
 ---
 
-## PHASE 10: Verification Pipeline (auto-run)
+## PHASE 10: git init (standalone mode only)
+
+**Skip this phase if MODE=monorepo** — the root repository already covers this package.
+
+If `.git/` already exists in `$ARGUMENTS`, skip and proceed to the next phase.
+
+Otherwise:
+
+```bash
+git init
+git branch -M main
+```
+
+If `git user.name` / `user.email` is not configured, notify the user and pause before committing.
+
+```bash
+git add .
+git commit -m "chore: initialize TypeScript CLI project\n\n- Add AGENTS.md, RULES.md, ARCHITECTURE.md\n- Scaffold CLI structure with Commander"
+```
+
+---
+
+## PHASE 11: Verification Pipeline (auto-run)
 
 Run automatically after initialization. Do not report completion without running verification.
 
@@ -603,7 +673,35 @@ If a command is unavailable or config is missing, report to the user immediately
 
 ---
 
-## PHASE 11: Completion Report
+## PHASE 12: Record troubleshooting
+
+Call `@document-writer` with:
+
+> Extract AI mistakes and incorrect implementations from this entire workflow and record them in `TROUBLE_SHOOT.md` at the project root.
+>
+> **What to extract** — record only these types (exclude normal design decisions or user requirement changes):
+> - Code incorrectly implemented by AI that required fixes
+> - Repeated error patterns in the self-correction loop
+> - Gaps or errors flagged by Metis or Momus
+> - Assertion translation errors found in spec↔test validation
+>
+> **Format** — write each item as:
+>
+> ```markdown
+> ## [YYYY-MM-DD] {task keyword}
+>
+> - {one-line rule or checkpoint to prevent recurrence}
+> - {add lines if multiple items}
+> ```
+>
+> **File handling:**
+> - If `TROUBLE_SHOOT.md` already exists — keep existing content and prepend the new entry
+> - If it does not exist — create it
+> - If there are no troubleshooting items from this workflow — skip this step
+
+---
+
+## PHASE 13: Completion Report
 
 ```
 AGENTS.md saved          : $ARGUMENTS/AGENTS.md ✅
