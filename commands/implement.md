@@ -6,7 +6,7 @@ You are the orchestrator. Execute the workflow below **in order, without interru
 Print `▶ PHASE N start` at the beginning of each step and `✅ PHASE N done` upon completion.
 Never skip or reorder steps.
 
-After printing `✅ PHASE N done`, immediately mark that PHASE as complete in the plan file by changing its checkbox from `[ ]` to `[x]` in the **PHASE Checklist** section of `.sisyphus/plans/{keyword}.md`. This updates the boulder progress tracker. If the plan file does not yet exist (PHASEs 0–1), perform the mark as soon as the file is created.
+After printing `✅ PHASE N done`, immediately mark that PHASE as complete in the plan file by changing its checkbox from `[ ]` to `[x]` in the **PHASE Checklist** section of `.sisyphus/plans/{keyword}.md`. This updates the boulder progress tracker. If the plan file does not yet exist (PHASEs 0–1a), perform the mark as soon as the file is created.
 
 ---
 
@@ -21,8 +21,9 @@ Before PHASE 0, determine the **keyword** by the rules below. Use it consistentl
 
 Print:
 ```
-📌 keyword: {keyword}
+📌 keyword  : {keyword}
    plan     : .sisyphus/plans/{keyword}.md
+   contract : .sisyphus/contracts/{keyword}.md
    scenarios: .sisyphus/tests/{keyword}.md
 ```
 
@@ -62,12 +63,76 @@ Check for these files at the project root. Read each one that exists.
 | `DESIGN.md` | UX/UI principles, interaction guide, design conventions | Follow in all frontend-related work |
 | `ARCHITECTURE.md` | System architecture, layer structure, tech-stack conventions | Use as the basis for planning (Prometheus) and implementation (Atlas) |
 
-- If none of the four files exist, skip to PHASE 1.
+- If none of the four files exist, skip to PHASE 1a.
 - After reading, print: `▶ PHASE 0 done — TROUBLE_SHOOT.md: {found/not found}, RULES.md: {found/not found}, DESIGN.md: {found/not found}, ARCHITECTURE.md: {found/not found}`
 
 ---
 
-## PHASE 1 — Write implementation plan (Prometheus)
+## PHASE 1a — Write API contract
+
+**The orchestrator** writes the API contract file before spawning any agent.
+This step must complete before PHASE 1b and PHASE 2 begin.
+
+Read `ARCHITECTURE.md` (loaded in PHASE 0) for HTTP conventions, then extract every HTTP endpoint mentioned or implied by `$ARGUMENTS`.
+
+### Deliverable — `.sisyphus/contracts/{keyword}.md`
+
+This file is the **single source of truth for all HTTP interfaces** in this task.
+It is derived from requirements only — not from implementation decisions.
+Any agent in this workflow may read it, **including Oracle**.
+(The SDV isolation rule forbids reading `.sisyphus/plans/` only — the contract file is explicitly permitted.)
+
+Write one section per endpoint using this format:
+
+```markdown
+## {METHOD} {path}
+
+**Request**
+- Body / Params:
+  ```ts
+  { fieldName: type; ... }
+  ```
+
+**Success**
+- Status: {code}
+- Body:
+  ```ts
+  { ok: true; data: { fieldName: type; ... } }
+  ```
+
+**Errors**
+| status | code | condition |
+|--------|------|-----------|
+| {4xx}  | {ERROR_CODE} | {trigger condition} |
+```
+
+### Writing rules
+
+- Use the HTTP conventions from `ARCHITECTURE.md` for status codes and envelope shapes.
+  If `ARCHITECTURE.md` is not found, default to the project-standard envelope:
+  - Success: `{ ok: true, data: ... }`
+  - Error: `{ ok: false, message: string, code?: string }`
+- Use TypeScript inline types for all shapes. Do not reference external type files.
+- Derive error codes from domain semantics (e.g. `PAYMENT_NOT_FOUND`, `ALREADY_REFUNDED`).
+  Do not invent codes not inferable from requirements.
+- If a requirement implies an endpoint but does not specify the full shape,
+  mark the ambiguous field as `unknown /* clarify */` and note it in a `> ⚠️ Ambiguity:` block beneath the section.
+- If the requirements contain **no HTTP endpoints** (e.g. pure CLI or background job),
+  write a single line: `> No HTTP endpoints in this task.` and proceed to PHASE 1b immediately.
+
+After writing, print:
+
+```
+📄 API contract written: .sisyphus/contracts/{keyword}.md
+   Endpoints defined: {list of METHOD /path, or "none"}
+   Ambiguities      : {count or "none"}
+```
+
+---
+
+## PHASE 1b — Write implementation plan (Prometheus)
+
+**Run in parallel with PHASE 2.** PHASE 1b and PHASE 2 do not depend on each other's output — start both simultaneously. **Wait for both to finish before proceeding to PHASE 3.**
 
 Call `@prometheus` with:
 
@@ -80,6 +145,11 @@ Call `@prometheus` with:
 > - `ARCHITECTURE.md` → use layer structure and tech-stack conventions as design baseline.
 > - `DESIGN.md` → apply UX/UI principles to any frontend-related output.
 >
+> **Also read `.sisyphus/contracts/{keyword}.md` if it exists.**
+> The contract file defines the agreed HTTP interface for this task.
+> Do not contradict or extend it — implement exactly what it specifies.
+> If the contract contains `⚠️ Ambiguity` notes, resolve them conservatively and document the decision.
+>
 > ### Deliverable — `.sisyphus/plans/{keyword}.md`
 >
 > The plan file must begin with a **PHASE checklist** section before any other content.
@@ -89,7 +159,8 @@ Call `@prometheus` with:
 > ## PHASE Checklist
 >
 > - [ ] PHASE 0: Load project context
-> - [ ] PHASE 1: Write implementation plan
+> - [ ] PHASE 1a: Write API contract
+> - [ ] PHASE 1b: Write implementation plan
 > - [ ] PHASE 2: Write test scenarios
 > - [ ] PHASE 3: Cross-validate plan and scenarios
 > - [ ] PHASE 4: Confirm implementation
@@ -133,7 +204,7 @@ Call `@prometheus` with:
 
 ## PHASE 2 — Write test scenarios (Oracle)
 
-**Run in parallel with PHASE 1.** PHASE 1 and PHASE 2 do not depend on each other's output — start both simultaneously. **Wait for both to finish before proceeding to PHASE 3.**
+**Run in parallel with PHASE 1b.** PHASE 1b and PHASE 2 do not depend on each other's output — start both simultaneously. **Wait for both to finish before proceeding to PHASE 3.**
 
 Call `@oracle` with:
 
@@ -143,6 +214,12 @@ Call `@oracle` with:
 > This spec must be based on requirements only. Reading the plan contaminates SDV independence.
 >
 > ※ **Isolation scope**: This is a filesystem-level isolation rule. If `@oracle` runs as a sub-agent with an independent context window in oh-my-opencode, isolation is guaranteed. Otherwise, Prometheus's plan content may remain in the orchestrator context. In either case, Oracle must honor the file access prohibition and reason only from the requirements text.
+>
+> **✅ `.sisyphus/contracts/{keyword}.md` may be read.**
+> This file contains the agreed HTTP interface derived from requirements — it is not an implementation plan.
+> If it exists, read it before writing scenarios.
+> Use the exact status codes, response field names, and error codes defined there.
+> Do not invent or assume interface details not present in the contract or requirements.
 >
 > ### Deliverable — `.sisyphus/tests/{keyword}.md`
 >
@@ -215,11 +292,18 @@ Call `@oracle` with:
 
 ## PHASE 3 — Cross-validate plan and scenarios (Metis)
 
-**[Join point]** Start only after both `.sisyphus/plans/{keyword}.md` and `.sisyphus/tests/{keyword}.md` exist.
+**[Join point]** Start only after all three of the following exist:
+- `.sisyphus/contracts/{keyword}.md`
+- `.sisyphus/plans/{keyword}.md`
+- `.sisyphus/tests/{keyword}.md`
 
 Call `@metis` with:
 
-> Read `.sisyphus/plans/{keyword}.md` and `.sisyphus/tests/{keyword}.md` and strictly review all items below.
+> Read `.sisyphus/contracts/{keyword}.md`, `.sisyphus/plans/{keyword}.md`, and `.sisyphus/tests/{keyword}.md` and strictly review all items below.
+>
+> #### [Contract review]
+> 0. **Contract↔plan consistency**: Does the plan implement every endpoint in the contract exactly?
+>    Flag any status code, field name, or error code the plan would contradict or omit.
 >
 > #### [Plan review]
 > 1. **Missing requirements**: Any user requirement not reflected in the plan?
@@ -233,17 +317,21 @@ Call `@metis` with:
 > 7. **Scenario independence**: Every scenario independently executable without depending on another?
 > 8. **Success/failure separation**: Any scenario mixing success and failure?
 > 9. **Coverage sufficiency**: Any missing scenarios across Happy Path, Edge Case, Error Case, Security?
+> 10. **Contract↔scenario consistency**: Do scenario assertions use the exact status codes, field names, and error codes from the contract?
+>     Flag any discrepancy (e.g. scenario asserts `status === 200` but contract specifies `201`).
 >
 > #### How to report issues
 >
 > Report issues to the **orchestrator** as a list. Do not call Prometheus or Oracle directly.
 > The orchestrator re-calls the relevant agent with your full report.
+> - Contract↔plan issues (0) → orchestrator re-calls `@prometheus` with the full Metis report.
 > - Plan issues (1–4) → orchestrator re-calls `@prometheus` with the full Metis report.
-> - Scenario issues (5–9) → orchestrator re-calls `@oracle` with the **full original PHASE 2 instructions (including isolation rules) plus the Metis report**.
+> - Scenario issues (5–10) → orchestrator re-calls `@oracle` with the **full original PHASE 2 instructions (including isolation rules) plus the Metis report**.
 >   The isolation rule ("never read `.sisyphus/plans/`") applies on every re-call without exception.
+>   The contract file permission ("`.sisyphus/contracts/{keyword}.md` may be read") also applies on every re-call.
 >
 > After each fix, re-review all items.
-> **Declare "Cross-validation complete" only when all 9 items pass.**
+> **Declare "Cross-validation complete" only when all 10 items pass.**
 >
 > #### Escape condition
 >
@@ -275,6 +363,7 @@ Call `@metis` with:
 ```
 📦 Context summary — PHASE 0–3
   Context files loaded : {found/not found list}
+  API contract         : {endpoint count or "none"} — .sisyphus/contracts/{keyword}.md
   Prometheus plan core : {2–3 lines of key design decisions}
   Oracle scenario count: Happy Path N / Edge N / Error N / Security N
   Metis issues         : {summary of fix requests or "none"}
@@ -283,7 +372,7 @@ Call `@metis` with:
 
 **[Pre-check]** Before calling `ask_user_input_v0`, verify:
 - Metis declared "Cross-validation complete"?
-- Both `.sisyphus/plans/{keyword}.md` and `.sisyphus/tests/{keyword}.md` exist?
+- All three files exist: `.sisyphus/contracts/{keyword}.md`, `.sisyphus/plans/{keyword}.md`, `.sisyphus/tests/{keyword}.md`?
 
 Wait until both conditions are met before continuing.
 
@@ -297,6 +386,9 @@ Print before calling `ask_user_input_v0`:
 Files to create/modify:
   (list from Scope section of the plan)
 
+API contract:
+  (endpoint list from .sisyphus/contracts/{keyword}.md, or "none")
+
 Risks and notes:
   (risks flagged by Metis or Prometheus, or "none")
 
@@ -306,7 +398,8 @@ Test scenario count:
 Shared utilities to reuse:
   (items from reuse plan, or "none")
 ─────────────────────────────────────
-Full plan: .sisyphus/plans/{keyword}.md
+Full plan    : .sisyphus/plans/{keyword}.md
+API contract : .sisyphus/contracts/{keyword}.md
 ```
 
 **[4-2] Ask user**
@@ -325,6 +418,9 @@ If user chose Y, call `@atlas` with:
 > Read `.sisyphus/plans/{keyword}.md` and implement the feature code.
 > This plan was created by Prometheus, validated by Metis, and approved by the user.
 > **Start implementing immediately — no re-planning, re-investigation, or user confirmation.**
+>
+> **Also read `.sisyphus/contracts/{keyword}.md` if it exists.**
+> Implement HTTP handlers to match the contract exactly — do not deviate from specified status codes, envelope shapes, or error codes.
 >
 > **[Required constraints]**
 > - **Do NOT write test code at this step.** Focus solely on feature implementation.
@@ -374,6 +470,10 @@ If user chose Y, delegate via `delegate_task(subagent_type="business-logic")` wi
 > **⚠️ Implementation isolation**: Do NOT open or read the new/modified files listed in the Scope section of `.sisyphus/plans/{keyword}.md`.
 > Write tests based solely on the `Expected results (pseudo-assertions)` in the spec.
 > Referencing implementation internals (function signatures, class structure, variable names) ties tests to implementation and violates SDV.
+>
+> **✅ `.sisyphus/contracts/{keyword}.md` may be read.**
+> Use it to confirm endpoint paths and envelope shapes when constructing HTTP request/response fixtures.
+> Do not use it to infer implementation details.
 >
 > **[Required constraints]**
 > - Create one file per TC: `{test output path}/TC-NNN.test.ts` (e.g. `TC-001.test.ts`, `TC-002.test.ts`).
@@ -576,6 +676,7 @@ Call `@document-writer` with:
 >
 > - Core requirement summary for this task
 > - List of files created/modified with paths
+> - API contract summary (endpoint list from `.sisyphus/contracts/{keyword}.md`, or "none")
 > - Tech stack applied and key design decisions
 > - Reused shared utilities (file path + import path)
 > - **Test execution**: if run, record pass/fail results; if skipped, record "tests not run"
@@ -630,6 +731,7 @@ Print the final report and terminate the workflow:
 ✅ /implement workflow complete
 
 📌 keyword          : {keyword}
+📄 API contract     : .sisyphus/contracts/{keyword}.md  (n/a if no HTTP endpoints)
 📋 plan             : .sisyphus/plans/{keyword}.md
 🧪 test scenarios   : .sisyphus/tests/{keyword}.md
 🧾 test code        : {test output path from Scope}  (n/a if skipped)

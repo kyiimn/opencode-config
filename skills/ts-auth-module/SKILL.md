@@ -34,6 +34,7 @@ This skill expects the following context from the caller:
     ├── persistence/
     │   └── auth.repository.ts
     └── http/
+        ├── express.d.ts
         ├── auth.middleware.ts
         ├── auth.controller.ts
         └── auth.route.ts
@@ -268,7 +269,7 @@ export class AuthService {
     return new SignJWT({ sub: userId })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
-      .setExpirationTime(`${ACCESS_EXPIRE_SEC}s`)
+      .setExpirationTime(`${String(ACCESS_EXPIRE_SEC)}s`)
       .sign(ACCESS_SECRET);
   }
 
@@ -276,8 +277,26 @@ export class AuthService {
     return new SignJWT({ sub: userId })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
-      .setExpirationTime(`${REFRESH_EXPIRE_SEC}s`)
+      .setExpirationTime(`${String(REFRESH_EXPIRE_SEC)}s`)
       .sign(REFRESH_SECRET);
+  }
+}
+```
+
+---
+
+### `src/modules/auth/infrastructure/http/express.d.ts`
+
+Separates Express type augmentation into a standalone declaration file to avoid `@typescript-eslint/no-namespace` violations.
+
+```typescript
+import { AuthUserEntity } from "../../domain/auth.repository.interface";
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthUserEntity;
+    }
   }
 }
 ```
@@ -289,16 +308,6 @@ export class AuthService {
 ```typescript
 import { Request, Response, NextFunction } from "express";
 import { AuthService } from "../../application/auth.service";
-import { AuthUserEntity } from "../../domain/auth.repository.interface";
-
-// Extend Express Request type
-declare global {
-  namespace Express {
-    interface Request {
-      user?: AuthUserEntity;
-    }
-  }
-}
 
 export const createAuthenticate = (authService: AuthService) => {
   return async (
@@ -364,16 +373,12 @@ export class AuthController {
     }
   };
 
-  me = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      if (!req.user) {
-        res.status(401).json({ ok: false, message: "Unauthorized" });
-        return;
-      }
-      res.status(200).json({ ok: true, data: req.user });
-    } catch (error) {
-      next(error);
+  me = (req: Request, res: Response): void => {
+    if (!req.user) {
+      res.status(401).json({ ok: false, message: "Unauthorized" });
+      return;
     }
+    res.status(200).json({ ok: true, data: req.user });
   };
 }
 ```
@@ -456,7 +461,7 @@ auth-module
   domain      : auth.repository.interface.ts, auth.validation.ts       ✅
   application : auth.service.ts                                         ✅
   persistence : auth.repository.ts                                      ✅
-  http        : auth.middleware.ts, auth.controller.ts, auth.route.ts   ✅
+  http        : express.d.ts, auth.middleware.ts, auth.controller.ts, auth.route.ts   ✅
 
   Endpoints
     POST /auth/login     → { accessToken, refreshToken }

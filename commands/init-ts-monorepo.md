@@ -449,8 +449,8 @@ auto-install-peers=true
 {
   "extends": "./base.json",
   "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
   },
 }
 ```

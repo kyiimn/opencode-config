@@ -36,7 +36,7 @@ import ipRangeCheck from "ip-range-check";
 export const allowIP = (allowedCidrs: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const clientIp =
-      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
       req.socket.remoteAddress;
 
     if (!clientIp) {
