@@ -6,7 +6,9 @@ You are the orchestrator. Execute the workflow below **in order, without interru
 Print `▶ PHASE N start` at the beginning of each step and `✅ PHASE N done` upon completion.
 Never skip or reorder steps.
 
-After printing `✅ PHASE N done`, immediately mark that PHASE as complete in the plan file by changing its checkbox from `[ ]` to `[x]` in the **PHASE Checklist** section of `.sisyphus/plans/{keyword}.md`. This updates the boulder progress tracker. If the plan file does not yet exist (PHASEs 0–1a), perform the mark as soon as the file is created.
+Each PHASE ends with an explicit **[Checklist update]** instruction. Execute it without exception before moving to the next PHASE.
+- The plan file (`.sisyphus/plans/{keyword}.md`) is created during PHASE 1b. For PHASEs completed before the file exists (PHASE 0, 1a), apply their checkbox updates immediately after the file is first written.
+- To update: replace `- [ ] PHASE N: ...` with `- [x] PHASE N: ...` for the completed PHASE. Do not alter any other line.
 
 ---
 
@@ -86,6 +88,13 @@ Check for these files at the project root. Read each one that exists.
   It must be passed verbatim to every agent call in PHASE 1b, PHASE 2, PHASE 5, PHASE 7, PHASE 9, and PHASE 10 as a `[TROUBLE_SHOOT constraints]` block (see each PHASE for the exact injection point).
   If `TROUBLE_SHOOT.md` was not found, the checklist is empty and the injection block is omitted.
 
+**[Checklist update]** The plan file does not exist yet. Queue this update and apply it immediately after the plan file is created in PHASE 1b:
+```
+- [x] PHASE 0: Load project context
+```
+
+✅ PHASE 0 done
+
 ---
 
 ## PHASE 1a — Write API contract
@@ -147,6 +156,13 @@ API contract written: .sisyphus/contracts/{keyword}.md
    Endpoints defined: {list of METHOD /path, or "none"}
    Ambiguities      : {count or "none"}
 ```
+
+**[Checklist update]** The plan file does not exist yet. Queue this update and apply it immediately after the plan file is created in PHASE 1b:
+```
+- [x] PHASE 1a: Write API contract
+```
+
+✅ PHASE 1a done
 
 ---
 
@@ -224,6 +240,15 @@ Call `@prometheus` with:
 >
 > Requirements:
 > $ARGUMENTS
+
+**[Checklist update]** The plan file was just created by Prometheus. Immediately apply all queued updates in one edit:
+```
+- [x] PHASE 0: Load project context
+- [x] PHASE 1a: Write API contract
+- [x] PHASE 1b: Write implementation plan
+```
+
+✅ PHASE 1b done
 
 ---
 
@@ -313,6 +338,13 @@ Call `@oracle` with:
 > Requirements:
 > $ARGUMENTS
 
+**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+```
+- [x] PHASE 2: Write test scenarios
+```
+
+✅ PHASE 2 done
+
 ---
 
 ## PHASE 3 — Cross-validate plan and scenarios (Metis)
@@ -377,6 +409,13 @@ Call `@metis` with:
 > - If proceed: log failed items as risks and move to PHASE 4.
 > - If abort: terminate the workflow.
 
+**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+```
+- [x] PHASE 3: Cross-validate plan and scenarios
+```
+
+✅ PHASE 3 done
+
 ---
 
 ## PHASE 4 — Confirm implementation (User Confirmation)
@@ -434,6 +473,13 @@ Call `ask_user_input_v0`:
 - **Options**: `Yes (Y)` / `Abort (N)`
 - If **N**: terminate immediately and print "Workflow aborted by user."
 
+**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+```
+- [x] PHASE 4: Confirm implementation
+```
+
+✅ PHASE 4 done
+
 ---
 
 ## PHASE 5 — Implement code (Atlas)
@@ -474,6 +520,13 @@ If user chose Y, call `@atlas` with:
 >   > Impact: {potential effect on other features}
 >   Modifying out-of-scope files without approval is strictly forbidden.
 
+**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+```
+- [x] PHASE 5: Implement code
+```
+
+✅ PHASE 5 done
+
 ---
 
 ## PHASE 6 — Confirm test generation (User Confirmation)
@@ -488,6 +541,13 @@ Call `ask_user_input_v0`:
 - **Question**: "Implementation complete. Generate test code and verify functionality based on `.sisyphus/tests/{keyword}.md`?"
 - **Options**: `Yes (Y)` / `Skip (N)`
 - If **N**: jump to PHASE 10 immediately. Record "tests not run" in PHASE 11.
+
+**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+```
+- [x] PHASE 6: Confirm test generation
+```
+
+✅ PHASE 6 done
 
 ---
 
@@ -528,6 +588,13 @@ If user chose Y, delegate via `delegate_task(subagent_type="business-logic")` wi
 >     - TC-002.test.ts: ...
 >   Total: N files
 >   ```
+
+**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+```
+- [x] PHASE 7: Write test code
+```
+
+✅ PHASE 7 done
 
 ---
 
@@ -583,6 +650,13 @@ PHASE 8 Momus fix report
 {fix details or "No fixes"}
 ─────────────────────────────────────
 ```
+
+**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+```
+- [x] PHASE 8: Validate spec↔test translation
+```
+
+✅ PHASE 8 done
 
 ---
 
@@ -676,6 +750,13 @@ Excluded: {TC list or "none"}
 ─────────────────────────────────────
 ```
 
+**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+```
+- [x] PHASE 9: Run tests and self-correction loop
+```
+
+✅ PHASE 9 done
+
 ---
 
 ## PHASE 10 — Refactor
@@ -711,6 +792,13 @@ PHASE 9 re-entry — Active Scope (refactored files only)
      ※ If excluded TCs fail again, skip them automatically without escalation.
 ```
 
+**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+```
+- [x] PHASE 10: Refactor
+```
+
+✅ PHASE 10 done
+
 ---
 
 ## PHASE 11 — Save context memory
@@ -731,6 +819,13 @@ Call `@document-writer` with:
 >   - What mistake or error occurred and in what situation
 >   - Root cause
 >   - How it was resolved
+
+**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+```
+- [x] PHASE 11: Save context memory
+```
+
+✅ PHASE 11 done
 
 ---
 
@@ -795,6 +890,13 @@ Call `@document-writer` with:
 > - If `TROUBLE_SHOOT.md` already exists, keep existing content and **prepend** the new entry.
 > - If it does not exist, create it.
 
+**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+```
+- [x] PHASE 12: Record troubleshooting
+```
+
+✅ PHASE 12 done
+
 ---
 
 ## PHASE 13 — Final report
@@ -818,3 +920,10 @@ troubleshooting  : done (skipped if nothing to record)
 
 All tasks completed successfully.
 ```
+
+**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+```
+- [x] PHASE 13: Final report
+```
+
+✅ PHASE 13 done
