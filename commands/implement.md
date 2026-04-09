@@ -7,8 +7,9 @@ Print `▶ PHASE N start` at the beginning of each step and `✅ PHASE N done` u
 Never skip or reorder steps.
 
 Each PHASE ends with an explicit **[Checklist update]** instruction. Execute it without exception before moving to the next PHASE.
-- The plan file (`.sisyphus/plans/{keyword}.md`) is created during PHASE 1b. For PHASEs completed before the file exists (PHASE 0, 1a), apply their checkbox updates immediately after the file is first written.
+- The plan file (`.y/plans/{keyword}.md`) is created during PHASE 1b. For PHASEs completed before the file exists (PHASE 0, 1a), apply their checkbox updates immediately after the file is first written.
 - To update: replace `- [ ] PHASE N: ...` with `- [x] PHASE N: ...` for the completed PHASE. Do not alter any other line.
+- For PHASEs skipped due to interview flags, replace `- [ ] PHASE N: ...` with `- [-] PHASE N: ... [skipped]`.
 
 ---
 
@@ -18,7 +19,7 @@ Each PHASE ends with an explicit **[Checklist update]** instruction. Execute it 
 
 If `$ARGUMENTS` is empty or blank:
 
-1. Read `.sisyphus/boulder.json`.
+1. Read `.y/boulder.json`.
    - **If it exists** → extract `plan_name` and treat it as the keyword.
      Print:
      ```
@@ -45,7 +46,7 @@ Before PHASE 0, determine the **keyword** by the rules below. Use it consistentl
 
 ### Keyword deduplication (new sessions only)
 
-After deriving the candidate keyword, check for an existing plan file at `.sisyphus/plans/{keyword}.md`.
+After deriving the candidate keyword, check for an existing plan file at `.y/plans/{keyword}.md`.
 Skip this check entirely if resume mode is active (boulder.json already matches the keyword).
 
 - If the file **does not exist** → use the keyword as-is.
@@ -62,23 +63,58 @@ All subsequent references to `{keyword}` in this workflow use the final deduplic
 Print:
 ```
 keyword  : {keyword}
-plan     : .sisyphus/plans/{keyword}.md
-contract : .sisyphus/contracts/{keyword}.md
-scenarios: .sisyphus/tests/{keyword}.md
+plan     : .y/plans/{keyword}.md
+contract : .y/contracts/{keyword}.md
+scenarios: .y/tests/{keyword}.md
 ```
 
-After declaring keyword, initialize or resume boulder state:
+---
 
-- Read `.sisyphus/boulder.json` if it exists.
+## Pre-flight — Interview
+
+**Skip this section entirely if resume mode is active** (boulder.json matches the current keyword).
+In resume mode, read `$RUN_TESTS` and `$RUN_REFACTOR` from the existing `.y/boulder.json` instead.
+
+Ask the user the following two questions **before any PHASE begins**.
+Both answers must be received before proceeding.
+
+Call `ask_user_input_v0`:
+- **Question 1**: "Run scenario-based testing? (affects PHASEs 2, 3, 6, 7, 8, 9 — skipping will still run lint and syntax checks)"
+- **Options**: `Yes — run full test pipeline` / `No — lint & syntax checks only`
+
+Call `ask_user_input_v0`:
+- **Question 2**: "Run refactoring after implementation? (affects PHASE 10)"
+- **Options**: `Yes — refactor after implementation` / `No — skip refactoring`
+
+Store the answers as workflow flags:
+- `$RUN_TESTS` = `true` (Yes) or `false` (No)
+- `$RUN_REFACTOR` = `true` (Yes) or `false` (No)
+
+Print:
+```
+Interview complete
+─────────────────────────────────────
+Scenario-based testing : {Yes / No — lint & syntax checks only}
+Refactoring            : {Yes / No}
+─────────────────────────────────────
+```
+
+---
+
+After the interview, initialize or resume boulder state:
+
+- Read `.y/boulder.json` if it exists.
   - If `plan_name` matches the current keyword → **resume mode**: print `🔁 Resuming: {keyword}`, read the plan file's checkbox list to identify completed PHASEs, skip those PHASEs and continue from the first unchecked one.
   - If `plan_name` differs → a different task is active. Print a warning and proceed as a new session (overwrite).
-- If the file does not exist → **new session**: create `.sisyphus/boulder.json` with the structure below. Use the current working directory as the absolute path base. Obtain the session ID from the environment if available; otherwise use `"unknown"`.
+- If the file does not exist → **new session**: create `.y/boulder.json` with the structure below. Use the current working directory as the absolute path base. Obtain the session ID from the environment if available; otherwise use `"unknown"`.
 
 ```json
 {
-  "active_plan": "{absolute path to .sisyphus/plans/{keyword}.md}",
+  "active_plan": "{absolute path to .y/plans/{keyword}.md}",
   "plan_name": "{keyword}",
-  "started_at": "{ISO 8601 timestamp}"
+  "started_at": "{ISO 8601 timestamp}",
+  "run_tests": {true|false},
+  "run_refactor": {true|false}
 }
 ```
 
@@ -142,12 +178,12 @@ This step must complete before PHASE 1b and PHASE 2 begin.
 
 Read `ARCHITECTURE.md` (loaded in PHASE 0) for HTTP conventions, then extract every HTTP endpoint mentioned or implied by `$ARGUMENTS`.
 
-### Deliverable — `.sisyphus/contracts/{keyword}.md`
+### Deliverable — `.y/contracts/{keyword}.md`
 
 This file is the **single source of truth for all HTTP interfaces** in this task.
 It is derived from requirements only — not from implementation decisions.
 Any agent in this workflow may read it, **including Oracle**.
-(The SDV isolation rule forbids reading `.sisyphus/plans/` only — the contract file is explicitly permitted.)
+(The SDV isolation rule forbids reading `.y/plans/` only — the contract file is explicitly permitted.)
 
 Write one section per endpoint using this format:
 
@@ -190,7 +226,7 @@ Write one section per endpoint using this format:
 After writing, print:
 
 ```
-API contract written: .sisyphus/contracts/{keyword}.md
+API contract written: .y/contracts/{keyword}.md
    Endpoints defined: {list of METHOD /path, or "none"}
    Ambiguities      : {count or "none"}
 ```
@@ -206,7 +242,7 @@ API contract written: .sisyphus/contracts/{keyword}.md
 
 ## PHASE 1b — Write implementation plan (Prometheus)
 
-**Run in parallel with PHASE 2.** PHASE 1b and PHASE 2 do not depend on each other's output — start both simultaneously. **Wait for both to finish before proceeding to PHASE 3.**
+**Run in parallel with PHASE 2 (if `$RUN_TESTS = true`).** If `$RUN_TESTS = false`, run PHASE 1b alone and proceed to PHASE 3 immediately after.
 
 Call `@prometheus` with:
 
@@ -224,12 +260,12 @@ Call `@prometheus` with:
 > For every item, add a corresponding guard note inside the plan section it applies to (e.g. `<!-- TS-3: validated -->`).
 > If an item conflicts with the current requirements, stop and surface the conflict to the orchestrator before proceeding.
 >
-> **Also read `.sisyphus/contracts/{keyword}.md` if it exists.**
+> **Also read `.y/contracts/{keyword}.md` if it exists.**
 > The contract file defines the agreed HTTP interface for this task.
 > Do not contradict or extend it — implement exactly what it specifies.
 > If the contract contains `⚠️ Ambiguity` notes, resolve them conservatively and document the decision.
 >
-> ### Deliverable — `.sisyphus/plans/{keyword}.md`
+> ### Deliverable — `.y/plans/{keyword}.md`
 >
 > The plan file must begin with a **PHASE checklist** section before any other content.
 > This checklist is the progress tracker read by the boulder state system (`getPlanProgress`).
@@ -244,7 +280,7 @@ Call `@prometheus` with:
 > - [ ] PHASE 3: Cross-validate plan and scenarios
 > - [ ] PHASE 4: Confirm implementation
 > - [ ] PHASE 5: Implement code
-> - [ ] PHASE 6: Confirm test generation
+> - [ ] PHASE 6: Lint & syntax check / Confirm test generation
 > - [ ] PHASE 7: Write test code
 > - [ ] PHASE 8: Validate spec↔test translation
 > - [ ] PHASE 9: Run tests and self-correction loop
@@ -292,24 +328,33 @@ Call `@prometheus` with:
 
 ## PHASE 2 — Write test scenarios (Oracle)
 
+**[Conditional]** If `$RUN_TESTS = false`, skip this entire PHASE.
+Apply checklist update:
+```
+- [-] PHASE 2: Write test scenarios [skipped]
+```
+Then proceed directly to PHASE 3.
+
+---
+
 **Run in parallel with PHASE 1b.** PHASE 1b and PHASE 2 do not depend on each other's output — start both simultaneously. **Wait for both to finish before proceeding to PHASE 3.**
 
 Call `@oracle` with:
 
 > Read the requirements below and write a functional test scenario spec.
 >
-> **⚠️ Do NOT read `.sisyphus/plans/` or any implementation plan files.**
+> **⚠️ Do NOT read `.y/plans/` or any implementation plan files.**
 > This spec must be based on requirements only. Reading the plan contaminates SDV independence.
 >
 > ※ **Isolation scope**: This is a filesystem-level isolation rule. If `@oracle` runs as a sub-agent with an independent context window in oh-my-opencode, isolation is guaranteed. Otherwise, Prometheus's plan content may remain in the orchestrator context. In either case, Oracle must honor the file access prohibition and reason only from the requirements text.
 >
-> [permitted] `.sisyphus/contracts/{keyword}.md` may be read.
+> [permitted] `.y/contracts/{keyword}.md` may be read.
 > This file contains the agreed HTTP interface derived from requirements — it is not an implementation plan.
 > If it exists, read it before writing scenarios.
 > Use the exact status codes, response field names, and error codes defined there.
 > Do not invent or assume interface details not present in the contract or requirements.
 >
-> ### Deliverable — `.sisyphus/tests/{keyword}.md`
+> ### Deliverable — `.y/tests/{keyword}.md`
 >
 > This file is the **sole and absolute reference** for all validation. Follow every rule below without exception.
 >
@@ -376,7 +421,7 @@ Call `@oracle` with:
 > Requirements:
 > $ARGUMENTS
 
-**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+**[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
 - [x] PHASE 2: Write test scenarios
 ```
@@ -387,14 +432,25 @@ Call `@oracle` with:
 
 ## PHASE 3 — Cross-validate plan and scenarios (Metis)
 
-**[Join point]** Start only after all three of the following exist:
-- `.sisyphus/contracts/{keyword}.md`
-- `.sisyphus/plans/{keyword}.md`
-- `.sisyphus/tests/{keyword}.md`
+**[Conditional]** If `$RUN_TESTS = false`:
+- Metis reviews the **plan only** (items 1–4 from the plan review checklist below).
+- Items 5–10 (scenario spec review) are skipped.
+- Metis does not need `.y/tests/{keyword}.md` to exist.
+- Item 0 (Contract↔plan consistency) is still checked.
+
+**[Join point — when `$RUN_TESTS = true`]** Start only after all three of the following exist:
+- `.y/contracts/{keyword}.md`
+- `.y/plans/{keyword}.md`
+- `.y/tests/{keyword}.md`
+
+**[Join point — when `$RUN_TESTS = false`]** Start only after both of the following exist:
+- `.y/contracts/{keyword}.md`
+- `.y/plans/{keyword}.md`
 
 Call `@metis` with:
 
-> Read `.sisyphus/contracts/{keyword}.md`, `.sisyphus/plans/{keyword}.md`, and `.sisyphus/tests/{keyword}.md` and strictly review all items below.
+> Read `.y/contracts/{keyword}.md` and `.y/plans/{keyword}.md`{, and `.y/tests/{keyword}.md`} and strictly review all items below.
+> (`.y/tests/{keyword}.md` review applies only when `$RUN_TESTS = true`.)
 >
 > #### [Contract review]
 > 0. **Contract↔plan consistency**: Does the plan implement every endpoint in the contract exactly?
@@ -406,7 +462,7 @@ Call `@metis` with:
 > 3. **Security vulnerabilities**: Auth, input validation, or data exposure gaps?
 > 4. **Architecture gaps**: Missing dependencies, wrong layer responsibility, or scalability issues?
 >
-> #### [Scenario spec review]
+> #### [Scenario spec review — only when `$RUN_TESTS = true`]
 > 5. **Assertion format compliance**: Every expected result in `assert <target> <op> <value>` form?
 > 6. **Ambiguous expressions**: Any "appropriate", "correct", "normal" etc. remaining?
 > 7. **Scenario independence**: Every scenario independently executable without depending on another?
@@ -422,11 +478,11 @@ Call `@metis` with:
 > - Contract↔plan issues (0) → orchestrator re-calls `@prometheus` with the full Metis report.
 > - Plan issues (1–4) → orchestrator re-calls `@prometheus` with the full Metis report.
 > - Scenario issues (5–10) → orchestrator re-calls `@oracle` with the **full original PHASE 2 instructions (including isolation rules) plus the Metis report**.
->   The isolation rule ("never read `.sisyphus/plans/`") applies on every re-call without exception.
->   The contract file permission ("`.sisyphus/contracts/{keyword}.md` may be read") also applies on every re-call.
+>   The isolation rule ("never read `.y/plans/`") applies on every re-call without exception.
+>   The contract file permission ("`.y/contracts/{keyword}.md` may be read") also applies on every re-call.
 >
-> After each fix, re-review all items.
-> **Declare "Cross-validation complete" only when all 10 items pass.**
+> After each fix, re-review all applicable items.
+> **Declare "Cross-validation complete" only when all applicable items pass.**
 >
 > #### Escape condition
 >
@@ -447,7 +503,7 @@ Call `@metis` with:
 > - If proceed: log failed items as risks and move to PHASE 4.
 > - If abort: terminate the workflow.
 
-**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+**[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
 - [x] PHASE 3: Cross-validate plan and scenarios
 ```
@@ -458,25 +514,27 @@ Call `@metis` with:
 
 ## PHASE 4 — Confirm implementation (User Confirmation)
 
-**[Notepad init]** Ensure `.sisyphus/notepads/{keyword}/` directory exists. After each major decision or discovery in this workflow, append a brief note to `.sisyphus/notepads/{keyword}/notes.md` (architectural decisions, edge cases found, risks identified). On resume, read this file first to regain situational awareness.
+**[Notepad init]** Ensure `.y/notepads/{keyword}/` directory exists. After each major decision or discovery in this workflow, append a brief note to `.y/notepads/{keyword}/notes.md` (architectural decisions, edge cases found, risks identified). On resume, read this file first to regain situational awareness.
 
 **[Compact context]** Before entering this step, summarize PHASE 0–3 logs in the format below, then immediately run `/compact` to remove the raw logs from context. Pass the summary block as the compaction hint so it remains accessible in later steps.
 
 ```
 Context summary — PHASE 0–3
   Context files loaded : {found/not found list}
-  API contract         : {endpoint count or "none"} — .sisyphus/contracts/{keyword}.md
+  API contract         : {endpoint count or "none"} — .y/contracts/{keyword}.md
   Prometheus plan core : {2–3 lines of key design decisions}
-  Oracle scenario count: Happy Path N / Edge N / Error N / Security N
+  Oracle scenario count: Happy Path N / Edge N / Error N / Security N  (or "skipped — $RUN_TESTS=false")
   Metis issues         : {summary of fix requests or "none"}
-  Prometheus re-calls  : {N}, Oracle re-calls: {N}
+  Prometheus re-calls  : {N}, Oracle re-calls: {N or "n/a"}
+  Workflow flags       : RUN_TESTS={true/false}, RUN_REFACTOR={true/false}
 ```
 
 **[Pre-check]** Before calling `ask_user_input_v0`, verify:
 - Metis declared "Cross-validation complete"?
-- All three files exist: `.sisyphus/contracts/{keyword}.md`, `.sisyphus/plans/{keyword}.md`, `.sisyphus/tests/{keyword}.md`?
+- `.y/contracts/{keyword}.md` and `.y/plans/{keyword}.md` exist?
+- If `$RUN_TESTS = true`: `.y/tests/{keyword}.md` also exists?
 
-Wait until both conditions are met before continuing.
+Wait until all applicable conditions are met before continuing.
 
 **[4-1] Print plan summary**
 
@@ -489,19 +547,24 @@ Files to create/modify:
   (list from Scope section of the plan)
 
 API contract:
-  (endpoint list from .sisyphus/contracts/{keyword}.md, or "none")
+  (endpoint list from .y/contracts/{keyword}.md, or "none")
 
 Risks and notes:
   (risks flagged by Metis or Prometheus, or "none")
 
 Test scenario count:
   Happy Path N / Edge Case N / Error Case N / Security N / Total N
+  (or "skipped — lint & syntax checks only" if $RUN_TESTS = false)
 
 Shared utilities to reuse:
   (items from reuse plan, or "none")
+
+Workflow settings:
+  Scenario testing : {enabled / disabled — lint & syntax checks only}
+  Refactoring      : {enabled / disabled}
 ─────────────────────────────────────
-Full plan    : .sisyphus/plans/{keyword}.md
-API contract : .sisyphus/contracts/{keyword}.md
+Full plan    : .y/plans/{keyword}.md
+API contract : .y/contracts/{keyword}.md
 ```
 
 **[4-2] Ask user**
@@ -511,7 +574,7 @@ Call `ask_user_input_v0`:
 - **Options**: `Yes (Y)` / `Abort (N)`
 - If **N**: terminate immediately and print "Workflow aborted by user."
 
-**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+**[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
 - [x] PHASE 4: Confirm implementation
 ```
@@ -524,11 +587,11 @@ Call `ask_user_input_v0`:
 
 If user chose Y, call `@atlas` with:
 
-> Read `.sisyphus/plans/{keyword}.md` and implement the feature code.
+> Read `.y/plans/{keyword}.md` and implement the feature code.
 > This plan was created by Prometheus, validated by Metis, and approved by the user.
 > **Start implementing immediately — no re-planning, re-investigation, or user confirmation.**
 >
-> **Also read `.sisyphus/contracts/{keyword}.md` if it exists.**
+> **Also read `.y/contracts/{keyword}.md` if it exists.**
 > Implement HTTP handlers to match the contract exactly — do not deviate from specified status codes, envelope shapes, or error codes.
 >
 > **[TROUBLE_SHOOT constraints]**
@@ -549,7 +612,7 @@ If user chose Y, call `@atlas` with:
 >   Fixed: {file path} — added: {@throws, etc.}
 >   ```
 >   If nothing to fix, report: "JSDoc check passed."
-> - **[Scope constraint — strict]** Only create or modify files listed in the File Scope section of `.sisyphus/plans/{keyword}.md`.
+> - **[Scope constraint — strict]** Only create or modify files listed in the File Scope section of `.y/plans/{keyword}.md`.
 >   If you need to touch an out-of-scope file, stop immediately and report to the orchestrator.
 >   The orchestrator will request user approval via `ask_user_input_v0` before allowing it:
 >   > Out-of-scope file modification request
@@ -558,7 +621,7 @@ If user chose Y, call `@atlas` with:
 >   > Impact: {potential effect on other features}
 >   Modifying out-of-scope files without approval is strictly forbidden.
 
-**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+**[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
 - [x] PHASE 5: Implement code
 ```
@@ -567,22 +630,66 @@ If user chose Y, call `@atlas` with:
 
 ---
 
-## PHASE 6 — Confirm test generation (User Confirmation)
+## PHASE 6 — Lint & syntax check / Confirm test generation
 
-**[Pre-check]** Before calling `ask_user_input_v0`, verify:
-- Atlas completed feature implementation?
-- Orchestrator received Atlas's JSDoc report (and confirmed any fixes)?
+**[Conditional — always runs regardless of `$RUN_TESTS`]**
 
-Wait until both conditions are met.
+### 6-A — Lint & syntax check (mandatory, always runs)
+
+**[Pre-check]** Verify Atlas completed feature implementation and the orchestrator received Atlas's JSDoc report (and confirmed any fixes).
+
+Delegate via `delegate_task(subagent_type="quick")` with:
+
+> Run lint and syntax checks on all files listed in the File Scope section of `.y/plans/{keyword}.md`.
+>
+> **Steps (execute all)**:
+> 1. Run the project's configured linter (e.g. `eslint`, `tsc --noEmit`, or equivalent) against every new and modified source file in scope.
+> 2. Report all errors and warnings in this format:
+>    ```
+>    [Lint/Syntax report]
+>    File: {path}
+>      ERROR   {line}: {message}
+>      WARNING {line}: {message}
+>    ```
+>    If no issues: "Lint & syntax: clean."
+> 3. **Auto-fix lint errors** that can be resolved automatically (e.g. `eslint --fix`).
+>    For each auto-fixed file, report: `Auto-fixed: {path}`.
+> 4. **Do NOT modify logic** — fix formatting and lint issues only.
+>    If a lint error requires logic changes, stop and report it to the orchestrator.
+> 5. After fixing, re-run the linter to confirm the reported errors are resolved.
+>    Report the final clean run result.
+
+If the sub-agent reports logic-change-required lint errors, the orchestrator requests user guidance via `ask_user_input_v0`:
+- **Question**: "Lint errors require logic changes. How would you like to proceed?"
+- **Options**: `Fix the errors` / `Skip and continue`
+
+Print the lint result summary before proceeding:
+```
+Lint & syntax check
+─────────────────────────────────────
+{clean / N errors fixed / N errors requiring manual fix}
+─────────────────────────────────────
+```
+
+---
+
+### 6-B — Confirm test generation (only when `$RUN_TESTS = true`)
+
+**[Conditional]** If `$RUN_TESTS = false`, skip this sub-section entirely.
+Apply checklist update:
+```
+- [-] PHASE 6 (test confirm): skipped — lint & syntax checks only
+```
+Then proceed to PHASE 7 skip.
 
 Call `ask_user_input_v0`:
-- **Question**: "Implementation complete. Generate test code and verify functionality based on `.sisyphus/tests/{keyword}.md`?"
+- **Question**: "Implementation complete. Generate test code and verify functionality based on `.y/tests/{keyword}.md`?"
 - **Options**: `Yes (Y)` / `Skip (N)`
 - If **N**: jump to PHASE 10 immediately. Record "tests not run" in PHASE 11.
 
-**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+**[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
-- [x] PHASE 6: Confirm test generation
+- [x] PHASE 6: Lint & syntax check / Confirm test generation
 ```
 
 ✅ PHASE 6 done
@@ -591,19 +698,28 @@ Call `ask_user_input_v0`:
 
 ## PHASE 7 — Write test code
 
-If user chose Y, delegate via `delegate_task(subagent_type="business-logic")` with:
+**[Conditional]** If `$RUN_TESTS = false`, skip this entire PHASE.
+Apply checklist update:
+```
+- [-] PHASE 7: Write test code [skipped]
+```
+Then proceed to PHASE 8 skip.
 
-> Read `.sisyphus/tests/{keyword}.md` and create **one test file per TC-NNN**.
+---
+
+If user chose Y in PHASE 6-B, delegate via `delegate_task(subagent_type="business-logic")` with:
+
+> Read `.y/tests/{keyword}.md` and create **one test file per TC-NNN**.
 >
 > **[TROUBLE_SHOOT constraints]**
 > {Insert the numbered prevention checklist extracted in PHASE 0, or omit this block if the list is empty.}
 > Pay special attention to any items related to assertion errors or test setup mistakes from past sessions.
 >
-> **⚠️ Implementation isolation**: Do NOT open or read the new/modified files listed in the Scope section of `.sisyphus/plans/{keyword}.md`.
+> **⚠️ Implementation isolation**: Do NOT open or read the new/modified files listed in the Scope section of `.y/plans/{keyword}.md`.
 > Write tests based solely on the `Expected results (pseudo-assertions)` in the spec.
 > Referencing implementation internals (function signatures, class structure, variable names) ties tests to implementation and violates SDV.
 >
-> [permitted] `.sisyphus/contracts/{keyword}.md` may be read.
+> [permitted] `.y/contracts/{keyword}.md` may be read.
 > Use it to confirm endpoint paths and envelope shapes when constructing HTTP request/response fixtures.
 > Do not use it to infer implementation details.
 >
@@ -627,7 +743,7 @@ If user chose Y, delegate via `delegate_task(subagent_type="business-logic")` wi
 >   Total: N files
 >   ```
 
-**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+**[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
 - [x] PHASE 7: Write test code
 ```
@@ -638,9 +754,18 @@ If user chose Y, delegate via `delegate_task(subagent_type="business-logic")` wi
 
 ## PHASE 8 — Validate spec↔test translation (Momus)
 
+**[Conditional]** If `$RUN_TESTS = false`, skip this entire PHASE.
+Apply checklist update:
+```
+- [-] PHASE 8: Validate spec↔test translation [skipped]
+```
+Then proceed to PHASE 9 skip.
+
+---
+
 Immediately after test writing completes, call `@momus` with:
 
-> Read `.sisyphus/tests/{keyword}.md` and verify each `TC-NNN.test.ts` file in the test output path one by one.
+> Read `.y/tests/{keyword}.md` and verify each `TC-NNN.test.ts` file in the test output path one by one.
 > For each TC file, verify that every pseudo-assertion was translated accurately.
 >
 > #### Validation criteria
@@ -667,7 +792,7 @@ Immediately after test writing completes, call `@momus` with:
 >   Code : expect(response.status).toBe(201)
 >   Fix  : Update TC-NNN.test.ts to match spec
 >   ```
-> - Fix the individual `TC-NNN.test.ts` file directly. **Never modify `.sisyphus/tests/{keyword}.md`.**
+> - Fix the individual `TC-NNN.test.ts` file directly. **Never modify `.y/tests/{keyword}.md`.**
 > - Re-verify each fixed TC file.
 > - Declare "Spec↔test translation validated" only when all TC files pass.
 > - **If any fixes were made**, report to the orchestrator:
@@ -689,7 +814,7 @@ PHASE 8 Momus fix report
 ─────────────────────────────────────
 ```
 
-**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+**[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
 - [x] PHASE 8: Validate spec↔test translation
 ```
@@ -700,12 +825,22 @@ PHASE 8 Momus fix report
 
 ## PHASE 9 — Run tests and self-correction loop
 
+**[Conditional]** If `$RUN_TESTS = false`, skip this entire PHASE.
+Apply checklist update:
+```
+- [-] PHASE 9: Run tests and self-correction loop [skipped]
+```
+Then proceed to PHASE 10.
+
+---
+
 **[Compact context]** Before entering this step, summarize PHASE 5–8 logs in the format below, then immediately run `/compact` to remove the raw logs from context. Pass the summary block as the compaction hint so it remains accessible in later steps.
 
 ```
 Context summary — PHASE 5–8
   Implemented files : {file list}
   JSDoc fixes       : {file list or "none"}
+  Lint result       : {clean / N issues}
   Momus fix summary : {fixed TC list and types or "no fixes"}
   TC files          : {TC-001 ~ TC-NNN, total N}
 ```
@@ -733,7 +868,7 @@ For each TC in the queue (in order), repeat the following cycle:
    - **If it fails**: go to step 2.
 
 2. Call `@momus` with:
-   > `TC-NNN.test.ts` failed. Compare the failure against the spec in `.sisyphus/tests/{keyword}.md`.
+   > `TC-NNN.test.ts` failed. Compare the failure against the spec in `.y/tests/{keyword}.md`.
    > Classify as **"feature bug"** or **"test bug"** and state the reason.
    > Error log: {error}
 
@@ -788,7 +923,7 @@ Excluded: {TC list or "none"}
 ─────────────────────────────────────
 ```
 
-**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+**[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
 - [x] PHASE 9: Run tests and self-correction loop
 ```
@@ -799,6 +934,15 @@ Excluded: {TC list or "none"}
 
 ## PHASE 10 — Refactor
 
+**[Conditional]** If `$RUN_REFACTOR = false`, skip this entire PHASE.
+Apply checklist update:
+```
+- [-] PHASE 10: Refactor [skipped]
+```
+Then proceed to PHASE 11.
+
+---
+
 Delegate via `delegate_task(subagent_type="deep")` with:
 
 > **[TROUBLE_SHOOT constraints]**
@@ -807,7 +951,7 @@ Delegate via `delegate_task(subagent_type="deep")` with:
 >
 > Read the `/refactor` skill file first, then refactor following its guidelines.
 > Also remove all unused imports and variables across the source.
-> **[Scope constraint — strict]** Only refactor files listed in the File Scope section of `.sisyphus/plans/{keyword}.md`.
+> **[Scope constraint — strict]** Only refactor files listed in the File Scope section of `.y/plans/{keyword}.md`.
 > **Exclude test files** (the "Test output path" files) from refactoring — Momus's spec↔test validation is complete and modifying them risks corrupting assertion meaning.
 > If you find improvements needed in out-of-scope files, do NOT make changes — note them separately.
 > If an out-of-scope file modification is truly required, stop and report to the orchestrator. The orchestrator will request user approval via `ask_user_input_v0` before allowing it.
@@ -830,7 +974,7 @@ PHASE 9 re-entry — Active Scope (refactored files only)
      ※ If excluded TCs fail again, skip them automatically without escalation.
 ```
 
-**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+**[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
 - [x] PHASE 10: Refactor
 ```
@@ -848,9 +992,11 @@ Call `@document-writer` with:
 >
 > - Core requirement summary for this task
 > - List of files created/modified with paths
-> - API contract summary (endpoint list from `.sisyphus/contracts/{keyword}.md`, or "none")
+> - API contract summary (endpoint list from `.y/contracts/{keyword}.md`, or "none")
 > - Tech stack applied and key design decisions
 > - Reused shared utilities (file path + import path)
+> - **Workflow settings**: RUN_TESTS={true/false}, RUN_REFACTOR={true/false}
+> - **Lint & syntax check**: record results from PHASE 6-A
 > - **Test execution**: if run, record pass/fail results; if skipped, record "tests not run"
 > - **Unresolved failures**: if any TCs were skipped via loop escape, record scenario IDs and last errors
 > - **Troubleshooting details**: for each issue encountered, record:
@@ -858,7 +1004,7 @@ Call `@document-writer` with:
 >   - Root cause
 >   - How it was resolved
 
-**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+**[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
 - [x] PHASE 11: Save context memory
 ```
@@ -928,7 +1074,7 @@ Call `@document-writer` with:
 > - If `TROUBLE_SHOOT.md` already exists, keep existing content and **prepend** the new entry.
 > - If it does not exist, create it.
 
-**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+**[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
 - [x] PHASE 12: Record troubleshooting
 ```
@@ -939,32 +1085,97 @@ Call `@document-writer` with:
 
 ## PHASE 13 — Final report
 
+### 13-0 — Git commit (conditional)
+
+Before printing the final report, check whether the project is a git repository:
+
+```bash
+git -C . rev-parse --is-inside-work-tree 2>/dev/null
+```
+
+- If the command **fails or returns false** → skip this section entirely and proceed to the report.
+- If the command **succeeds** → continue below.
+
+**[13-0-1] Show staged diff summary**
+
+Run the following to build a change summary for the user:
+
+```bash
+git status --short
+```
+
+Print:
+```
+Git status
+─────────────────────────────────────
+{output of git status --short}
+─────────────────────────────────────
+```
+
+**[13-0-2] Ask user**
+
+Call `ask_user_input_v0`:
+- **Question**: "Commit the changes above to the git repository?"
+- **Options**: `Yes — commit` / `No — skip`
+
+**If Yes:**
+
+Call `ask_user_input_v0`:
+- **Question**: "Enter a commit message (leave blank to use the default below):"
+- **Options**: `Use default: feat: implement {keyword}` / `Enter custom message`
+
+If the user selects the default, use `feat: implement {keyword}` as the commit message.
+If the user enters a custom message, use that instead.
+
+Then run:
+
+```bash
+git add -A
+git commit -m "{commit message}"
+```
+
+Print the result:
+```
+Git commit
+─────────────────────────────────────
+{git commit output — commit hash and summary line}
+─────────────────────────────────────
+```
+
+**If No:** skip without comment and proceed to the final report.
+
+---
+
+### Final report
+
 Print the final report and terminate the workflow:
 
 ```
 ✅ /implement workflow complete
 
 keyword          : {keyword}
-API contract     : .sisyphus/contracts/{keyword}.md  (n/a if no HTTP endpoints)
-plan             : .sisyphus/plans/{keyword}.md
-test scenarios   : .sisyphus/tests/{keyword}.md
+API contract     : .y/contracts/{keyword}.md  (n/a if no HTTP endpoints)
+plan             : .y/plans/{keyword}.md
+test scenarios   : .y/tests/{keyword}.md  (n/a if $RUN_TESTS=false)
 test code        : {test output path from Scope}  (n/a if skipped)
+lint & syntax    : {clean / N issues fixed}
 spec↔test check  : done (n/a if skipped) / Momus fixes: {N or "none"}
 test results     : passed {N} / excluded {N} / total {N}  (n/a if skipped)
                    excluded: {TC ID list or "none"}
-refactor         : done
+refactor         : done  (n/a if $RUN_REFACTOR=false)
 memory saved     : done
 troubleshooting  : done (skipped if nothing to record)
+git commit       : {commit hash + message / skipped by user / not a git repo}
 
 All tasks completed successfully.
 ```
 
-**[Checklist update]** In `.sisyphus/plans/{keyword}.md`, update:
+**[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
 - [x] PHASE 13: Final report
 ```
 
-**[Cleanup]** Delete `.sisyphus/boulder.json`.
+**[Cleanup]** Delete `.y/boulder.json`.
 This signals the session is fully closed. A future `/implement` call will start a new session.
 Note: If the workflow was aborted before reaching this PHASE (e.g. user chose "Abort workflow" in PHASE 9), `boulder.json` is intentionally left in place so the next call can resume.
 
