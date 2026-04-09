@@ -14,12 +14,50 @@ Each PHASE ends with an explicit **[Checklist update]** instruction. Execute it 
 
 ## Pre-flight — Declare keyword
 
+### No-argument entry check
+
+If `$ARGUMENTS` is empty or blank:
+
+1. Read `.sisyphus/boulder.json`.
+   - **If it exists** → extract `plan_name` and treat it as the keyword.
+     Print:
+     ```
+     🔁 No arguments given. Resuming active task: {plan_name}
+     ```
+     Then continue Pre-flight normally (resume mode).
+   - **If it does not exist** → print:
+     ```
+     ⚠️  No active task found and no arguments provided.
+     Please call /implement with a task description to begin.
+     ```
+     Then **terminate immediately** (do not proceed to PHASE 0).
+
+2. If `$ARGUMENTS` is present, proceed normally.
+
+---
+
 Before PHASE 0, determine the **keyword** by the rules below. Use it consistently in every step.
 
 - If the first word of `$ARGUMENTS` is a valid identifier (letters, digits, hyphens only), use it as the keyword.
 - Otherwise summarize `$ARGUMENTS` into a ≤3-word lowercase kebab-case slug.
   - e.g. "Add user login feature" → `user-login`
   - e.g. "Implement payment refund API" → `payment-refund`
+
+### Keyword deduplication (new sessions only)
+
+After deriving the candidate keyword, check for an existing plan file at `.sisyphus/plans/{keyword}.md`.
+Skip this check entirely if resume mode is active (boulder.json already matches the keyword).
+
+- If the file **does not exist** → use the keyword as-is.
+- If the file **exists** → append a numeric suffix, incrementing until a free slot is found:
+  - `{keyword}-2`, `{keyword}-3`, … (start at `-2`; never use `-1`)
+  - Use the first suffix whose corresponding plan file does not exist.
+  - Print:
+    ```
+    ⚠️  '{original}' already exists. Using '{keyword}' instead.
+    ```
+
+All subsequent references to `{keyword}` in this workflow use the final deduplicated value.
 
 Print:
 ```
@@ -925,5 +963,9 @@ All tasks completed successfully.
 ```
 - [x] PHASE 13: Final report
 ```
+
+**[Cleanup]** Delete `.sisyphus/boulder.json`.
+This signals the session is fully closed. A future `/implement` call will start a new session.
+Note: If the workflow was aborted before reaching this PHASE (e.g. user chose "Abort workflow" in PHASE 9), `boulder.json` is intentionally left in place so the next call can resume.
 
 ✅ PHASE 13 done
