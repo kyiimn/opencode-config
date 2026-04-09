@@ -299,12 +299,12 @@ Fill in `{placeholders}` from the values resolved in PHASE 2A or PHASE 2B.
 
 ## LOGGER {#logger}
 
-> **Logger 실행 — 탐색 없이 즉시 분기:**
+> **Logger dispatch — branch immediately, no investigation:**
 >
-> | MODE | 조건 | Action |
+> | MODE | Condition | Action |
 > |------|------|--------|
-> | Monorepo | 루트 `RULES.md` 에 공유 logger 패키지 언급 (예: `@{scope}/core`) | **`ts-logger` 스킬 생략.** `src/lib/logger.ts` 생성하지 않음. 생성된 파일의 logger import 경로를 공유 패키지로 변경. `package.json` dependencies 에 `"@{scope}/core": "workspace:*"` 추가. |
-> | Standalone | 공유 logger 없음 | **`ts-logger` 스킬을 standalone 모드로 호출.** |
+> | Monorepo | Root `RULES.md` references a shared logger package (e.g. `@{scope}/core`) | **Skip `ts-logger` skill.** Do not generate `src/lib/logger.ts`. Update logger import paths in generated files to use the shared package. Add `"@{scope}/core": "workspace:*"` to `package.json` dependencies. |
+> | Standalone | No shared logger found | **Run `ts-logger` skill in standalone mode.** |
 >
 > No source scan needed — import paths and level rules are fixed.
 
@@ -637,12 +637,12 @@ describe('{dir-name} smoke test', () => {
 });
 ```
 
-> **Logger 실행 — 탐색 없이 즉시 분기:**
+> **Logger dispatch — branch immediately, no investigation:**
 >
-> | MODE | 조건 | Action |
+> | MODE | Condition | Action |
 > |------|------|--------|
-> | Monorepo | 루트 `RULES.md` 에 공유 logger 패키지 언급 (예: `@{scope}/core`) | **`ts-logger` 스킬 생략.** `src/lib/logger.ts` 생성하지 않음. 생성된 파일의 logger import 경로를 공유 패키지로 변경. `package.json` dependencies 에 `"@{scope}/core": "workspace:*"` 추가. |
-> | Standalone | 공유 logger 없음 | **`ts-logger` 스킬을 standalone 모드로 호출.** |
+> | Monorepo | Root `RULES.md` references a shared logger package (e.g. `@{scope}/core`) | **Skip `ts-logger` skill.** Do not generate `src/lib/logger.ts`. Update logger import paths in generated files to use the shared package. Add `"@{scope}/core": "workspace:*"` to `package.json` dependencies. |
+> | Standalone | No shared logger found | **Run `ts-logger` skill in standalone mode.** |
 
 ---
 
@@ -748,10 +748,10 @@ git commit -m "chore: initialize TypeScript CLI project\n\n- Add AGENTS.md, RULE
 ## PHASE 14: Completion Report
 
 ```
-AGENTS.md saved          : $ARGUMENTS/AGENTS.md ✅
-RULES.md saved           : $ARGUMENTS/RULES.md ✅
-ARCHITECTURE.md saved    : $ARGUMENTS/ARCHITECTURE.md ✅
-Project initialized      : CLI structure ✅
+AGENTS.md saved          : $ARGUMENTS/AGENTS.md
+RULES.md saved           : $ARGUMENTS/RULES.md
+ARCHITECTURE.md saved    : $ARGUMENTS/ARCHITECTURE.md
+Project initialized      : CLI structure
 Files created
   Config                 : package.json, tsconfig.json, eslint.config.js, vitest.config.ts
   Source                 : src/index.ts, src/index.test.ts

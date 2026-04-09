@@ -228,12 +228,12 @@ Don't: no `console.log` in prod · no magic strings · no `any` · no unapproved
 
 ## LOGGER {#logger}
 
-> **Logger 실행 — 탐색 없이 즉시 분기:**
+> **Logger dispatch — branch immediately, no investigation:**
 >
-> | MODE | 조건 | Action |
+> | MODE | Condition | Action |
 > |------|------|--------|
-> | Monorepo | 루트 `RULES.md` 에 공유 logger 패키지 언급 (예: `@{scope}/core`) | **`ts-logger` 스킬 생략.** `src/lib/logger.ts` 생성하지 않음. 생성된 파일의 logger import 경로를 공유 패키지로 변경. `package.json` dependencies 에 `"@{scope}/core": "workspace:*"` 추가. |
-> | Standalone | 공유 logger 없음 | **`ts-logger` 스킬을 standalone 모드로 호출.** |
+> | Monorepo | Root `RULES.md` references a shared logger package (e.g. `@{scope}/core`) | **Skip `ts-logger` skill.** Do not generate `src/lib/logger.ts`. Update logger import paths in generated files to use the shared package. Add `"@{scope}/core": "workspace:*"` to `package.json` dependencies. |
+> | Standalone | No shared logger found | **Run `ts-logger` skill in standalone mode.** |
 >
 > No source scan needed — import paths and level rules are fixed.
 
@@ -447,14 +447,14 @@ devDependencies: `typescript ^5` · `vite ^6` · `@vitejs/plugin-react ^4` · `v
 
 **`.gitignore`** — `node_modules/` `dist/` `coverage/` `.env` `.env.local`
 
-> **Logger 실행 — 탐색 없이 즉시 분기:**
+> **Logger dispatch — branch immediately, no investigation:**
 >
-> | MODE | 조건 | Action |
+> | MODE | Condition | Action |
 > |------|------|--------|
-> | Monorepo | 루트 `RULES.md` 에 공유 logger 패키지 언급 (예: `@{scope}/core`) | **`ts-logger` 스킬 생략.** `src/lib/logger.ts` 생성하지 않음. 생성된 파일의 logger import 경로를 공유 패키지로 변경. `package.json` dependencies 에 `"@{scope}/core": "workspace:*"` 추가. |
-> | Standalone | 공유 logger 없음 | **`ts-logger` 스킬을 standalone 모드로 호출.** |
+> | Monorepo | Root `RULES.md` references a shared logger package (e.g. `@{scope}/core`) | **Skip `ts-logger` skill.** Do not generate `src/lib/logger.ts`. Update logger import paths in generated files to use the shared package. Add `"@{scope}/core": "workspace:*"` to `package.json` dependencies. |
+> | Standalone | No shared logger found | **Run `ts-logger` skill in standalone mode.** |
 >
-> (React 프로젝트에서는 서버 사이드 코드 / API 호출 레이어에서 logger 를 활용합니다.)
+> (In React projects, use the logger in server-side code and API client layers.)
 
 ---
 
@@ -558,11 +558,11 @@ git commit -m "chore: initialize TypeScript React project\n\n- Add AGENTS.md, RU
 ## PHASE 13: Report
 
 ```
-AGENTS.md       → DIR/AGENTS.md ✅
-RULES.md        → {path} ✅
-ARCHITECTURE.md → DIR/ARCHITECTURE.md ✅
+AGENTS.md       → DIR/AGENTS.md
+RULES.md        → {path}
+ARCHITECTURE.md → DIR/ARCHITECTURE.md
 Router          → {TanStack Router (file-based) | none}
-Scaffolding     → React 19 + Vite + shadcn/ui ✅
+Scaffolding     → React 19 + Vite + shadcn/ui
 
 Validation
   install  {PASS|FAIL}

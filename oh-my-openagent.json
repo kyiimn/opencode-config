@@ -6,10 +6,10 @@
       "prompt_append": "- [세부 계획 수립] 작업 계획(Plan) 파일 작성 시, 단순히 수행할 일을 나열하는 것을 넘어 소스코드 단위의 설계(예: 함수명, 주요 로직의 흐름, 의존성 관계)를 포함하도록 구체화하십시오.\n- [코드 재사용 우선] 새로운 유틸리티나 헬퍼 함수 구현을 계획하기 전에, 반드시 Librarian이나 Explore 에이전트를 활용해 전체 코드베이스(공용 패키지 및 공유 디렉터리 등)에 이미 동일하거나 유사한 목적의 함수가 존재하는지 먼저 확인하고 재사용을 계획하십시오."
     },
     "hephaestus": {
-      "model": "ollama-cloud/qwen3-coder-next"
+      "model": "ollama-cloud/glm-5.1"
     },
     "oracle": {
-      "model": "ollama-cloud/gemma4:31b-cloud"
+      "model": "ollama-cloud/glm-5.1"
     },
     "librarian": {
       "model": "ollama-cloud/minimax-m2.7"
@@ -26,10 +26,10 @@
       "prompt_append": "- [최종 검수 - JSDoc] Sisyphus가 작성한 코드의 JSDoc을 검토하십시오. `@param`, `@throws`, `@returns` 중 하나라도 누락되었거나, 복잡한 로직임에도 `@example`이 없다면 수정을 요구하며 반려하십시오.\n- [최종 검수 - 중복 방지] 새로 추가된 유틸리티 함수가 기존 코드베이스에 이미 존재하는 기능과 중복되는지 검토하십시오. 중복이 의심되면 기존 공용 함수를 임포트(import)하여 사용하도록 지시하십시오."
     },
     "momus": {
-      "model": "ollama-cloud/gemma4:31b-cloud"
+      "model": "ollama-cloud/minimax-m2.7"
     },
     "atlas": {
-      "model": "ollama-cloud/minimax-m2.7"
+      "model": "ollama-cloud/glm-5.1"
     },
     "sisyphus-junior": {
       "model": "ollama-cloud/qwen3-coder-next"

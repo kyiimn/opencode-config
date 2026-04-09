@@ -1335,9 +1335,9 @@ git commit -m "chore: initialize TypeScript Express API project\n\n- Add AGENTS.
 ## PHASE 9: Report
 
 ```
-AGENTS.md           : $ARGUMENTS/AGENTS.md ✅
-RULES.md            : {$ARGUMENTS/RULES.md (standalone) | root/RULES.md (inherited)} ✅
-ARCHITECTURE.md     : $ARGUMENTS/ARCHITECTURE.md ✅
+AGENTS.md           : $ARGUMENTS/AGENTS.md
+RULES.md            : {$ARGUMENTS/RULES.md (standalone) | root/RULES.md (inherited)}
+ARCHITECTURE.md     : $ARGUMENTS/ARCHITECTURE.md
 Mode                : {monorepo | standalone}
 
 Scaffold

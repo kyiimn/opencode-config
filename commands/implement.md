@@ -21,10 +21,10 @@ Before PHASE 0, determine the **keyword** by the rules below. Use it consistentl
 
 Print:
 ```
-📌 keyword  : {keyword}
-   plan     : .sisyphus/plans/{keyword}.md
-   contract : .sisyphus/contracts/{keyword}.md
-   scenarios: .sisyphus/tests/{keyword}.md
+keyword  : {keyword}
+plan     : .sisyphus/plans/{keyword}.md
+contract : .sisyphus/contracts/{keyword}.md
+scenarios: .sisyphus/tests/{keyword}.md
 ```
 
 After declaring keyword, initialize or resume boulder state:
@@ -64,7 +64,27 @@ Check for these files at the project root. Read each one that exists.
 | `ARCHITECTURE.md` | System architecture, layer structure, tech-stack conventions | Use as the basis for planning (Prometheus) and implementation (Atlas) |
 
 - If none of the four files exist, skip to PHASE 1a.
-- After reading, print: `▶ PHASE 0 done — TROUBLE_SHOOT.md: {found/not found}, RULES.md: {found/not found}, DESIGN.md: {found/not found}, ARCHITECTURE.md: {found/not found}`
+- After reading, print:
+
+```
+▶ PHASE 0 done
+   TROUBLE_SHOOT.md : {found/not found}
+   RULES.md         : {found/not found}
+   DESIGN.md        : {found/not found}
+   ARCHITECTURE.md  : {found/not found}
+```
+
+- If `TROUBLE_SHOOT.md` was found, **immediately extract every rule or open issue from it** and print as a numbered prevention checklist:
+
+```
+[!] TROUBLE_SHOOT prevention checklist ({N} items)
+   1. {rule or open issue, one line}
+   2. ...
+```
+
+  This checklist is the **active guard rail for the entire workflow**.
+  It must be passed verbatim to every agent call in PHASE 1b, PHASE 2, PHASE 5, PHASE 7, PHASE 9, and PHASE 10 as a `[TROUBLE_SHOOT constraints]` block (see each PHASE for the exact injection point).
+  If `TROUBLE_SHOOT.md` was not found, the checklist is empty and the injection block is omitted.
 
 ---
 
@@ -123,7 +143,7 @@ Write one section per endpoint using this format:
 After writing, print:
 
 ```
-📄 API contract written: .sisyphus/contracts/{keyword}.md
+API contract written: .sisyphus/contracts/{keyword}.md
    Endpoints defined: {list of METHOD /path, or "none"}
    Ambiguities      : {count or "none"}
 ```
@@ -140,10 +160,15 @@ Call `@prometheus` with:
 > **Do NOT write test scenarios at this step.** A separate agent handles tests independently.
 >
 > If context files were loaded in PHASE 0, internalize them before planning:
-> - `TROUBLE_SHOOT.md` → embed prevention rules throughout the plan.
 > - `RULES.md` → follow coding rules and conventions without exception.
 > - `ARCHITECTURE.md` → use layer structure and tech-stack conventions as design baseline.
 > - `DESIGN.md` → apply UX/UI principles to any frontend-related output.
+>
+> **[TROUBLE_SHOOT constraints]**
+> {Insert the numbered prevention checklist extracted in PHASE 0, or omit this block if the list is empty.}
+> Before writing a single line of the plan, go through each item above and explicitly confirm your approach does not violate it.
+> For every item, add a corresponding guard note inside the plan section it applies to (e.g. `<!-- TS-3: validated -->`).
+> If an item conflicts with the current requirements, stop and surface the conflict to the orchestrator before proceeding.
 >
 > **Also read `.sisyphus/contracts/{keyword}.md` if it exists.**
 > The contract file defines the agreed HTTP interface for this task.
@@ -191,7 +216,7 @@ Call `@prometheus` with:
 >   - {existing file path} (reason)
 >
 >   ### Test output path
->   - {test directory path, e.g. apps/api/src/tests/scenario/}
+>   - {test directory path, e.g. apps/api/src/test/scenario/}
 >
 >   ### Out-of-scope (never modify)
 >   - All existing files not listed above
@@ -215,7 +240,7 @@ Call `@oracle` with:
 >
 > ※ **Isolation scope**: This is a filesystem-level isolation rule. If `@oracle` runs as a sub-agent with an independent context window in oh-my-opencode, isolation is guaranteed. Otherwise, Prometheus's plan content may remain in the orchestrator context. In either case, Oracle must honor the file access prohibition and reason only from the requirements text.
 >
-> **✅ `.sisyphus/contracts/{keyword}.md` may be read.**
+> [permitted] `.sisyphus/contracts/{keyword}.md` may be read.
 > This file contains the agreed HTTP interface derived from requirements — it is not an implementation plan.
 > If it exists, read it before writing scenarios.
 > Use the exact status codes, response field names, and error codes defined there.
@@ -361,7 +386,7 @@ Call `@metis` with:
 **[Compact context]** Before entering this step, summarize PHASE 0–3 logs in the format below, then immediately run `/compact` to remove the raw logs from context. Pass the summary block as the compaction hint so it remains accessible in later steps.
 
 ```
-📦 Context summary — PHASE 0–3
+Context summary — PHASE 0–3
   Context files loaded : {found/not found list}
   API contract         : {endpoint count or "none"} — .sisyphus/contracts/{keyword}.md
   Prometheus plan core : {2–3 lines of key design decisions}
@@ -381,7 +406,7 @@ Wait until both conditions are met before continuing.
 Print before calling `ask_user_input_v0`:
 
 ```
-📋 Plan summary
+Plan summary
 ─────────────────────────────────────
 Files to create/modify:
   (list from Scope section of the plan)
@@ -421,6 +446,11 @@ If user chose Y, call `@atlas` with:
 >
 > **Also read `.sisyphus/contracts/{keyword}.md` if it exists.**
 > Implement HTTP handlers to match the contract exactly — do not deviate from specified status codes, envelope shapes, or error codes.
+>
+> **[TROUBLE_SHOOT constraints]**
+> {Insert the numbered prevention checklist extracted in PHASE 0, or omit this block if the list is empty.}
+> Before writing any code, verify your approach against each item above.
+> If an item is relevant to the current file or function, add an inline comment: `// TS-N: {rule summary}` at the point where the guard applies.
 >
 > **[Required constraints]**
 > - **Do NOT write test code at this step.** Focus solely on feature implementation.
@@ -467,11 +497,15 @@ If user chose Y, delegate via `delegate_task(subagent_type="business-logic")` wi
 
 > Read `.sisyphus/tests/{keyword}.md` and create **one test file per TC-NNN**.
 >
+> **[TROUBLE_SHOOT constraints]**
+> {Insert the numbered prevention checklist extracted in PHASE 0, or omit this block if the list is empty.}
+> Pay special attention to any items related to assertion errors or test setup mistakes from past sessions.
+>
 > **⚠️ Implementation isolation**: Do NOT open or read the new/modified files listed in the Scope section of `.sisyphus/plans/{keyword}.md`.
 > Write tests based solely on the `Expected results (pseudo-assertions)` in the spec.
 > Referencing implementation internals (function signatures, class structure, variable names) ties tests to implementation and violates SDV.
 >
-> **✅ `.sisyphus/contracts/{keyword}.md` may be read.**
+> [permitted] `.sisyphus/contracts/{keyword}.md` may be read.
 > Use it to confirm endpoint paths and envelope shapes when constructing HTTP request/response fixtures.
 > Do not use it to infer implementation details.
 >
@@ -544,7 +578,7 @@ Immediately after test writing completes, call `@momus` with:
 After PHASE 8, the orchestrator prints and proceeds to PHASE 9:
 
 ```
-📋 PHASE 8 Momus fix report
+PHASE 8 Momus fix report
 ─────────────────────────────────────
 {fix details or "No fixes"}
 ─────────────────────────────────────
@@ -557,7 +591,7 @@ After PHASE 8, the orchestrator prints and proceeds to PHASE 9:
 **[Compact context]** Before entering this step, summarize PHASE 5–8 logs in the format below, then immediately run `/compact` to remove the raw logs from context. Pass the summary block as the compaction hint so it remains accessible in later steps.
 
 ```
-📦 Context summary — PHASE 5–8
+Context summary — PHASE 5–8
   Implemented files : {file list}
   JSDoc fixes       : {file list or "none"}
   Momus fix summary : {fixed TC list and types or "no fixes"}
@@ -593,11 +627,19 @@ For each TC in the queue (in order), repeat the following cycle:
 
 3. Branch on Momus's verdict:
    - **Feature bug** → delegate via `delegate_task(subagent_type="deep")`:
+     > **[TROUBLE_SHOOT constraints]**
+     > {Insert the numbered prevention checklist extracted in PHASE 0, or omit this block if the list is empty.}
+     > Check whether this failure matches any past pattern above before writing a fix.
+     >
      > Fix only the **feature code** causing `TC-NNN` to fail. Do not touch `TC-NNN.test.ts`.
      > Error: {message}
      > **[Scope constraint]** Only modify files in the active Scope declaration.
      > If you need an out-of-scope file, stop and report to the orchestrator.
    - **Test bug** → delegate via `delegate_task(subagent_type="deep")`:
+     > **[TROUBLE_SHOOT constraints]**
+     > {Insert the numbered prevention checklist extracted in PHASE 0, or omit this block if the list is empty.}
+     > Check whether this failure matches any past assertion-translation error above before writing a fix.
+     >
      > Fix only the bug in `TC-NNN.test.ts`. Do not touch feature code or the scenario spec.
      > Bug: {Momus's reason}
      > After fixing, Momus will re-verify assertion meaning preservation.
@@ -627,7 +669,7 @@ Retry count : 3
 **When all TCs in the queue are processed** (passed or excluded), print the summary and proceed to PHASE 10:
 
 ```
-📊 PHASE 9 summary
+PHASE 9 summary
 ─────────────────────────────────────
 Passed  : {TC list}
 Excluded: {TC list or "none"}
@@ -640,6 +682,10 @@ Excluded: {TC list or "none"}
 
 Delegate via `delegate_task(subagent_type="deep")` with:
 
+> **[TROUBLE_SHOOT constraints]**
+> {Insert the numbered prevention checklist extracted in PHASE 0, or omit this block if the list is empty.}
+> Verify the refactored output does not reintroduce any pattern listed above.
+>
 > Read the `/refactor` skill file first, then refactor following its guidelines.
 > Also remove all unused imports and variables across the source.
 > **[Scope constraint — strict]** Only refactor files listed in the File Scope section of `.sisyphus/plans/{keyword}.md`.
@@ -654,7 +700,7 @@ If test failures are reported after refactoring, **re-enter the PHASE 9 sequenti
 Before re-entry, the orchestrator re-declares the active Scope and resets the TC queue:
 
 ```
-🔁 PHASE 9 re-entry — Active Scope (refactored files only)
+PHASE 9 re-entry — Active Scope (refactored files only)
    Modifiable files:
      - {files actually modified during refactoring}
    Out-of-scope: all files not in the list above (never modify)
@@ -690,36 +736,64 @@ Call `@document-writer` with:
 
 ## PHASE 12 — Record troubleshooting
 
-**[Pre-check]** Start only after PHASE 11 memory save is confirmed complete. PHASE 12 references PHASE 11's troubleshooting details to extract prevention rules — order must be guaranteed.
+**[Pre-check]** Start only after PHASE 11 memory save is confirmed complete.
+
+**[Mandatory execution rule]**
+This step is **skippable ONLY IF all of the following are true**:
+- No TC had retry count ≥ 1 in PHASE 9
+- No Metis re-calls occurred in PHASE 3
+- No Momus fixes occurred in PHASE 8
+- No escaped TCs in PHASE 9
+- No out-of-scope file requests in PHASE 5 or PHASE 10
+- No Prometheus re-calls occurred in PHASE 3
+
+If even one condition is false, this step is **mandatory and must not be skipped**.
 
 Call `@document-writer` with:
 
-> Extract AI mistakes and incorrect implementations from this entire workflow and record them in `TROUBLE_SHOOT.md` at the project root.
+> Extract AI mistakes, wrong approaches, and recurring problems from this entire workflow and record them in `TROUBLE_SHOOT.md` at the project root.
 >
 > #### What to extract
 >
-> Record only these types — exclude normal design decisions or user requirement changes:
-> - Code incorrectly implemented by AI that required fixes
-> - Repeated error patterns in the self-correction loop
-> - Gaps or errors flagged by Metis or Momus
+> Include **all** of the following — do not filter or omit categories:
+> - Code incorrectly implemented by AI that required fixes (including partial rewrites)
+> - Cases where AI chose the wrong architecture or approach and had to backtrack
+> - Repeated error patterns in the PHASE 9 self-correction loop (retry count ≥ 2)
+> - Gaps or errors flagged by Metis or Momus, even if subsequently fixed
 > - Assertion translation errors found in spec↔test validation
+> - **Escaped TCs**: test cases that could not be resolved after 3 retries — record as unresolved
+> - Any requirement misunderstanding that led to rework
+> - Any sub-task that required more than 2 attempts for any reason
+>
+> Exclude: normal design decisions, user-initiated requirement changes.
 >
 > #### Format
 >
-> Write each item as below. Detailed problem/cause/fix info is in memory — do not duplicate it here.
+> Write each workflow as one dated entry. Within the entry, separate resolved from unresolved items.
+> Detailed problem/cause/fix info is already in memory — do not duplicate it here; one-line rules are sufficient for resolved items.
 >
 > ```markdown
 > ## [YYYY-MM-DD] {task keyword}
 >
-> - {one-line rule or checkpoint to prevent recurrence}
-> - {add lines if multiple items}
+> ### Resolved
+> - **[Rule]** {one-line prevention rule}
+>   - What went wrong: {brief description}
+>   - Detected by: Metis | Momus | Test failure | Self-correction
+>
+> ### Unresolved
+> - **[Open]** {description of the issue}
+>   - Escaped TC: {TC-NNN} — Last error: {one-line summary}
+>   - Attempted: {what was tried}
 > ```
+>
+> If Resolved has nothing to record, write `(none)`.
+> If Unresolved has nothing to record, write `(none)`.
+> **Do not omit either section header.**
 >
 > #### File handling
 >
 > - If `TROUBLE_SHOOT.md` already exists, keep existing content and **prepend** the new entry.
 > - If it does not exist, create it.
-> - If there are no troubleshooting items from this workflow, skip this step.
 
 ---
 
@@ -730,17 +804,17 @@ Print the final report and terminate the workflow:
 ```
 ✅ /implement workflow complete
 
-📌 keyword          : {keyword}
-📄 API contract     : .sisyphus/contracts/{keyword}.md  (n/a if no HTTP endpoints)
-📋 plan             : .sisyphus/plans/{keyword}.md
-🧪 test scenarios   : .sisyphus/tests/{keyword}.md
-🧾 test code        : {test output path from Scope}  (n/a if skipped)
-🔍 spec↔test check  : done (n/a if skipped) / Momus fixes: {N or "none"}
-🧪 test results     : passed {N} / excluded {N} / total {N}  (n/a if skipped)
-                      excluded: {TC ID list or "none"}
-🔧 refactor         : done
-💾 memory saved     : done
-📝 troubleshooting  : done (skipped if nothing to record)
+keyword          : {keyword}
+API contract     : .sisyphus/contracts/{keyword}.md  (n/a if no HTTP endpoints)
+plan             : .sisyphus/plans/{keyword}.md
+test scenarios   : .sisyphus/tests/{keyword}.md
+test code        : {test output path from Scope}  (n/a if skipped)
+spec↔test check  : done (n/a if skipped) / Momus fixes: {N or "none"}
+test results     : passed {N} / excluded {N} / total {N}  (n/a if skipped)
+                   excluded: {TC ID list or "none"}
+refactor         : done
+memory saved     : done
+troubleshooting  : done (skipped if nothing to record)
 
 All tasks completed successfully.
 ```
