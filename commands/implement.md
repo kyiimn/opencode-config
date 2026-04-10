@@ -70,25 +70,51 @@ scenarios: .y/tests/{keyword}.md
 
 ---
 
+## Pre-flight — Git repository detection
+
+Run the following before the interview. The result determines whether git-related questions are presented.
+
+```bash
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+```
+
+- If the command **fails** (not a git repo) → set `$IS_GIT_REPO = false`. Skip all git-related interview questions. Set `$USE_WORKTREE = false`.
+- If the command **succeeds** → set `$IS_GIT_REPO = true` and store `$REPO_ROOT` as the absolute path returned.
+
+Additionally, detect the current base branch:
+
+```bash
+BASE_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")
+```
+
+Store as `$BASE_BRANCH`. This is the branch all worktree work will eventually merge back into.
+
+---
+
 ## Pre-flight — Interview
 
 **Skip this section entirely if resume mode is active** (boulder.json matches the current keyword).
-In resume mode, read `$RUN_TESTS` and `$RUN_REFACTOR` from the existing `.y/boulder.json` instead.
+In resume mode, read all flags (`$RUN_TESTS`, `$RUN_REFACTOR`, `$USE_WORKTREE`) from the existing `.y/boulder.json` instead.
 
-Ask the user the following two questions **before any PHASE begins**.
-Both answers must be received before proceeding.
+Ask the user the following questions **before any PHASE begins**.
+All answers must be received before proceeding.
 
-Call `ask_user_input_v0`:
+**Questions 1–2** — Call `ask_user_input_v0` with both questions in a single call:
 - **Question 1**: "Run scenario-based testing? (affects PHASEs 2, 3, 6, 7, 8, 9 — skipping will still run lint and syntax checks)"
 - **Options**: `Yes — run full test pipeline` / `No — lint & syntax checks only`
-
-Call `ask_user_input_v0`:
 - **Question 2**: "Run refactoring after implementation? (affects PHASE 10)"
 - **Options**: `Yes — refactor after implementation` / `No — skip refactoring`
+
+**Question 3 — only if `$IS_GIT_REPO = true`** — Call `ask_user_input_v0`:
+- **Question**: "Use a git worktree for isolated development? (base branch: {$BASE_BRANCH})"
+- **Options**:
+  - `Yes — create worktree: work in a fully isolated branch; merge back to {$BASE_BRANCH} when done (safest, no risk of polluting the main branch during development)`
+  - `No — work directly: make changes in the current branch without isolation (simpler, but commits will accumulate on {$BASE_BRANCH} as you work)`
 
 Store the answers as workflow flags:
 - `$RUN_TESTS` = `true` (Yes) or `false` (No)
 - `$RUN_REFACTOR` = `true` (Yes) or `false` (No)
+- `$USE_WORKTREE` = `true` (Yes) or `false` (No) — always `false` if `$IS_GIT_REPO = false`
 
 Print:
 ```
@@ -96,26 +122,140 @@ Interview complete
 ─────────────────────────────────────
 Scenario-based testing : {Yes / No — lint & syntax checks only}
 Refactoring            : {Yes / No}
+Git worktree           : {Yes / No / n/a — not a git repo}
 ─────────────────────────────────────
 ```
 
 ---
 
-After the interview, initialize or resume boulder state:
+## Pre-flight — Worktree setup
 
-- Read `.y/boulder.json` if it exists.
+**Skip this entire section if `$USE_WORKTREE = false`.**
+**Skip this entire section if resume mode is active** — the worktree was already created in the previous session; verify it is still live (see Resume handling below).
+
+### Derive paths
+
+```bash
+REPO_NAME=$(basename "$REPO_ROOT")
+WORKTREE_BRANCH="implement/{keyword}"
+WORKTREE_PATH="$(dirname "$REPO_ROOT")/.worktrees/$REPO_NAME/{keyword}"
+```
+
+Print:
+```
+Worktree setup
+─────────────────────────────────────
+Base branch    : {$BASE_BRANCH}
+Worktree branch: implement/{keyword}
+Worktree path  : {$WORKTREE_PATH}
+─────────────────────────────────────
+```
+
+### Create branch and worktree
+
+```bash
+git -C "$REPO_ROOT" checkout -b "implement/{keyword}"
+git -C "$REPO_ROOT" checkout "$BASE_BRANCH"
+git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" "implement/{keyword}"
+```
+
+- If `git worktree add` fails (e.g. path already exists) → print the error, ask user via `ask_user_input_v0`:
+  - **Question**: "Worktree creation failed. How would you like to proceed?"
+  - **Options**: `Abort workflow` / `Continue without worktree (work directly on {$BASE_BRANCH})`
+  - If abort → terminate immediately.
+  - If continue → set `$USE_WORKTREE = false` and proceed without worktree.
+
+### Set global working directory
+
+```
+$WORK_DIR = $WORKTREE_PATH   (if $USE_WORKTREE = true)
+$WORK_DIR = $REPO_ROOT       (if $USE_WORKTREE = false)
+```
+
+**This value is used throughout the entire workflow.** Every agent that reads or writes source files must operate inside `$WORK_DIR`.
+
+Print:
+```
+✅ Worktree ready
+   $WORK_DIR = {$WORK_DIR}
+   .y/ metadata = {$REPO_ROOT}/.y/   (always anchored to main repo)
+```
+
+---
+
+## Pre-flight — Resume: worktree verification
+
+**This check runs only in resume mode when `$USE_WORKTREE = true` (read from boulder.json).**
+
+Verify the worktree is still registered:
+
+```bash
+git -C "$REPO_ROOT" worktree list | grep "$WORKTREE_PATH"
+```
+
+- If **found** → restore `$WORK_DIR = $WORKTREE_PATH`. Print `🔁 Worktree resumed: {$WORKTREE_PATH}`.
+- If **not found** → the worktree was removed externally. Print:
+  ```
+  ⚠️  Worktree not found: {$WORKTREE_PATH}
+  ```
+  Ask user via `ask_user_input_v0`:
+  - **Question**: "The worktree from the previous session no longer exists. How would you like to proceed?"
+  - **Options**:
+    - `Recreate worktree at the same path and continue`
+    - `Continue without worktree (use main repo — branch implement/{keyword} must exist)`
+    - `Abort`
+  - If recreate → run `git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" "implement/{keyword}"`, restore `$WORK_DIR`.
+  - If continue without → set `$USE_WORKTREE = false`, `$WORK_DIR = $REPO_ROOT`, checkout `implement/{keyword}` in main repo.
+  - If abort → terminate.
+
+---
+
+After worktree setup (or skip), initialize or resume boulder state:
+
+- Read `$REPO_ROOT/.y/boulder.json` if it exists.
   - If `plan_name` matches the current keyword → **resume mode**: print `🔁 Resuming: {keyword}`, read the plan file's checkbox list to identify completed PHASEs, skip those PHASEs and continue from the first unchecked one.
   - If `plan_name` differs → a different task is active. Print a warning and proceed as a new session (overwrite).
-- If the file does not exist → **new session**: create `.y/boulder.json` with the structure below. Use the current working directory as the absolute path base. Obtain the session ID from the environment if available; otherwise use `"unknown"`.
+- If the file does not exist → **new session**: create `$REPO_ROOT/.y/boulder.json` with the structure below.
 
 ```json
 {
-  "active_plan": "{absolute path to .y/plans/{keyword}.md}",
+  "active_plan": "{$REPO_ROOT}/.y/plans/{keyword}.md",
   "plan_name": "{keyword}",
   "started_at": "{ISO 8601 timestamp}",
   "run_tests": {true|false},
-  "run_refactor": {true|false}
+  "run_refactor": {true|false},
+  "worktree": {
+    "enabled": {true|false},
+    "path": "{$WORKTREE_PATH or null}",
+    "branch": "implement/{keyword} or null",
+    "base_branch": "{$BASE_BRANCH or null}"
+  }
 }
+```
+
+---
+
+## Global working directory rule
+
+**This rule applies to every agent call and every file operation in this entire workflow.**
+
+| Variable | Value | Purpose |
+|---|---|---|
+| `$REPO_ROOT` | absolute path to main repo root | anchor for `.y/` metadata |
+| `$WORK_DIR` | worktree path or `$REPO_ROOT` | anchor for all source file operations |
+
+- All `.y/` paths (plans, contracts, tests, notepads, boulder.json) always resolve to `$REPO_ROOT/.y/`.
+- All source file reads and writes (implementation, tests, refactoring) always happen inside `$WORK_DIR`.
+- When `$USE_WORKTREE = false`, `$WORK_DIR = $REPO_ROOT`, so both resolve to the same location.
+
+Every agent spawned in PHASEs 1b, 2, 3, 5, 6, 7, 8, 9, 10, 13-pre must receive these two paths explicitly in its prompt. Use this injection block at the top of every agent delegation:
+
+```
+[Working directory]
+  Source files : $WORK_DIR = {$WORK_DIR}
+  Metadata (.y/): $REPO_ROOT/.y/ = {$REPO_ROOT}/.y/
+All source file reads and writes must be performed inside $WORK_DIR.
+All .y/ file references use the absolute path above, not a relative path.
 ```
 
 
@@ -242,7 +382,11 @@ API contract written: .y/contracts/{keyword}.md
 
 ## PHASE 1b — Write implementation plan (Prometheus)
 
-**Run in parallel with PHASE 2 (if `$RUN_TESTS = true`).** If `$RUN_TESTS = false`, run PHASE 1b alone and proceed to PHASE 3 immediately after.
+**Run in parallel with PHASE 2 (if `$RUN_TESTS = true`).** If `$RUN_TESTS = false`, run PHASE 1b alone, then apply the following skip markers and proceed directly to PHASE 4:
+```
+- [-] PHASE 2: Write test scenarios [skipped]
+```
+Then proceed to PHASE 3 (plan-only review).
 
 Call `@prometheus` with:
 
@@ -433,10 +577,9 @@ Call `@oracle` with:
 ## PHASE 3 — Cross-validate plan and scenarios (Metis)
 
 **[Conditional]** If `$RUN_TESTS = false`:
-- Metis reviews the **plan only** (items 1–4 from the plan review checklist below).
+- Metis reviews the **plan only** (items 0–4 from the review checklist below).
 - Items 5–10 (scenario spec review) are skipped.
 - Metis does not need `.y/tests/{keyword}.md` to exist.
-- Item 0 (Contract↔plan consistency) is still checked.
 
 **[Join point — when `$RUN_TESTS = true`]** Start only after all three of the following exist:
 - `.y/contracts/{keyword}.md`
@@ -449,7 +592,7 @@ Call `@oracle` with:
 
 Call `@metis` with:
 
-> Read `.y/contracts/{keyword}.md` and `.y/plans/{keyword}.md`{, and `.y/tests/{keyword}.md`} and strictly review all items below.
+> Read `.y/contracts/{keyword}.md` and `.y/plans/{keyword}.md`{, and `.y/tests/{keyword}.md` if `$RUN_TESTS = true`} and strictly review all applicable items below.
 > (`.y/tests/{keyword}.md` review applies only when `$RUN_TESTS = true`.)
 >
 > #### [Contract review]
@@ -530,7 +673,7 @@ Context summary — PHASE 0–3
 ```
 
 **[Pre-check]** Before calling `ask_user_input_v0`, verify:
-- Metis declared "Cross-validation complete"?
+- Metis declared "Cross-validation complete" (plan-only review when `$RUN_TESTS = false`)?
 - `.y/contracts/{keyword}.md` and `.y/plans/{keyword}.md` exist?
 - If `$RUN_TESTS = true`: `.y/tests/{keyword}.md` also exists?
 
@@ -678,14 +821,20 @@ Lint & syntax check
 **[Conditional]** If `$RUN_TESTS = false`, skip this sub-section entirely.
 Apply checklist update:
 ```
-- [-] PHASE 6 (test confirm): skipped — lint & syntax checks only
+- [x] PHASE 6: Lint & syntax check / Confirm test generation
 ```
+(Lint completed; test generation confirm skipped — lint & syntax checks only.)
 Then proceed to PHASE 7 skip.
 
 Call `ask_user_input_v0`:
 - **Question**: "Implementation complete. Generate test code and verify functionality based on `.y/tests/{keyword}.md`?"
 - **Options**: `Yes (Y)` / `Skip (N)`
-- If **N**: jump to PHASE 10 immediately. Record "tests not run" in PHASE 11.
+- If **N**: apply the following skip markers and jump to PHASE 10 immediately. Record "tests not run" in PHASE 11.
+  ```
+  - [-] PHASE 7: Write test code [skipped]
+  - [-] PHASE 8: Validate spec↔test translation [skipped]
+  - [-] PHASE 9: Run tests and self-correction loop [skipped]
+  ```
 
 **[Checklist update]** In `.y/plans/{keyword}.md`, update:
 ```
@@ -707,7 +856,7 @@ Then proceed to PHASE 8 skip.
 
 ---
 
-If user chose Y in PHASE 6-B, delegate via `delegate_task(subagent_type="business-logic")` with:
+If user chose Y in PHASE 6-B, delegate via `delegate_task(subagent_type="deep")` with:
 
 > Read `.y/tests/{keyword}.md` and create **one test file per TC-NNN**.
 >
@@ -955,17 +1104,16 @@ Delegate via `delegate_task(subagent_type="deep")` with:
 > **Exclude test files** (the "Test output path" files) from refactoring — Momus's spec↔test validation is complete and modifying them risks corrupting assertion meaning.
 > If you find improvements needed in out-of-scope files, do NOT make changes — note them separately.
 > If an out-of-scope file modification is truly required, stop and report to the orchestrator. The orchestrator will request user approval via `ask_user_input_v0` before allowing it.
-> After refactoring, **re-run each `TC-NNN.test.ts` sequentially** (only if test code exists). Skip excluded TCs from PHASE 9 automatically.
-> If not, skip this check.
+> After refactoring, **re-run each `TC-NNN.test.ts` sequentially** (only if PHASE 7 was executed and test code exists; skip excluded TCs from PHASE 9 automatically). If PHASE 7 was skipped (by `$RUN_TESTS = false` or user choice in PHASE 6-B), skip this check entirely.
 > **If any TC fails, stop and report the failed TC ID and error log to the orchestrator.**
 
 If test failures are reported after refactoring, **re-enter the PHASE 9 sequential TC loop**.
 Before re-entry, the orchestrator re-declares the active Scope and resets the TC queue:
 
 ```
-PHASE 9 re-entry — Active Scope (refactored files only)
+PHASE 9 re-entry — Active Scope (original scope)
    Modifiable files:
-     - {files actually modified during refactoring}
+     - {new files + allowed modifications from File Scope section of .y/plans/{keyword}.md}
    Out-of-scope: all files not in the list above (never modify)
    TC queue     : [TC-001, TC-002, ..., TC-NNN]  ← full queue, re-run all
    TC counter   : reset to 0 (refactoring failures have different root causes)
@@ -1019,12 +1167,12 @@ Call `@document-writer` with:
 
 **[Mandatory execution rule]**
 This step is **skippable ONLY IF all of the following are true**:
-- No TC had retry count ≥ 1 in PHASE 9
-- No Metis re-calls occurred in PHASE 3
-- No Momus fixes occurred in PHASE 8
-- No escaped TCs in PHASE 9
+- No TC had retry count ≥ 1 in PHASE 9 (or PHASE 9 was skipped)
+- No Metis re-calls occurred in PHASE 3 (or PHASE 3 was skipped)
+- No Momus fixes occurred in PHASE 8 (or PHASE 8 was skipped)
+- No escaped TCs in PHASE 9 (or PHASE 9 was skipped)
 - No out-of-scope file requests in PHASE 5 or PHASE 10
-- No Prometheus re-calls occurred in PHASE 3
+- No Prometheus re-calls occurred in PHASE 3 (or PHASE 3 was skipped)
 
 If even one condition is false, this step is **mandatory and must not be skipped**.
 
@@ -1085,23 +1233,151 @@ Call `@document-writer` with:
 
 ## PHASE 13 — Final report
 
-### 13-0 — Git commit (conditional)
+### 13-pre — Worktree merge & cleanup (conditional)
 
-Before printing the final report, check whether the project is a git repository:
+**Skip this entire section if `$USE_WORKTREE = false`.**
+
+#### 13-pre-1 — Final lint verification in worktree
+
+Before merging, run a final lint check inside `$WORK_DIR` to ensure the worktree branch is clean:
 
 ```bash
-git -C . rev-parse --is-inside-work-tree 2>/dev/null
+cd "$WORK_DIR" && {project lint command}
 ```
 
-- If the command **fails or returns false** → skip this section entirely and proceed to the report.
-- If the command **succeeds** → continue below.
+If lint errors are found, ask user via `ask_user_input_v0`:
+- **Question**: "Lint errors detected in the worktree. How would you like to proceed?"
+- **Options**: `Fix errors before merging` / `Merge anyway and fix later`
+- If fix → delegate a lint-fix task, then re-run lint. Repeat until clean or user chooses to merge anyway.
 
-**[13-0-1] Show staged diff summary**
+#### 13-pre-2 — Commit changes in worktree branch
+
+```bash
+cd "$WORK_DIR"
+git status --short
+```
+
+Print:
+```
+Worktree status (branch: implement/{keyword})
+─────────────────────────────────────
+{output of git status --short}
+─────────────────────────────────────
+```
+
+If there are uncommitted changes, ask user via `ask_user_input_v0`:
+- **Question**: "Commit the worktree changes before merging?"
+- **Options**: `Yes — commit` / `No — merge as-is (only already-committed changes will be included)`
+
+If Yes — ask for commit message:
+- **Question**: "Enter a commit message:"
+- **Options**: `Use default: feat: implement {keyword}` / `Enter custom message`
+
+Then run in `$WORK_DIR`:
+```bash
+git add -A
+git commit -m "{commit message}"
+```
+
+#### 13-pre-3 — Choose merge strategy
+
+Call `ask_user_input_v0`:
+- **Question**: "Choose how to merge `implement/{keyword}` into `{$BASE_BRANCH}`:"
+- **Options**:
+  - `Squash merge — collapse all commits into one clean commit on {$BASE_BRANCH} (recommended for clean history; individual branch commits are discarded)`
+  - `Merge commit — create an explicit merge commit that preserves the full branch history (good for traceability; adds a merge bubble to the graph)`
+  - `Rebase — replay branch commits linearly on top of {$BASE_BRANCH} (produces the cleanest linear history; rewrites commit SHAs)`
+
+Store as `$MERGE_STRATEGY`.
+
+#### 13-pre-4 — Execute merge
+
+Switch to the base branch in the main repo:
+
+```bash
+cd "$REPO_ROOT"
+git checkout "$BASE_BRANCH"
+```
+
+Run the chosen strategy:
+
+**Squash merge:**
+```bash
+git merge --squash "implement/{keyword}"
+git commit -m "feat: implement {keyword} (squashed)"
+```
+
+**Merge commit:**
+```bash
+git merge --no-ff "implement/{keyword}" -m "Merge implement/{keyword} into {$BASE_BRANCH}"
+```
+
+**Rebase:**
+```bash
+git rebase "$BASE_BRANCH" "implement/{keyword}"
+git checkout "$BASE_BRANCH"
+git merge --ff-only "implement/{keyword}"
+```
+
+**If merge/rebase conflict is detected:**
+```
+⚠️  Merge conflict detected
+─────────────────────────────────────
+Conflicting files:
+  {list of conflicting files from git output}
+─────────────────────────────────────
+The worktree at {$WORKTREE_PATH} has been left in place.
+Resolve conflicts manually, then run /implement (no arguments) to resume.
+```
+- Update `$REPO_ROOT/.y/boulder.json` with `"merge_state": "conflict"`.
+- **Do not delete the worktree.** Terminate the workflow here. The next `/implement` call with no arguments will resume from this point after the user resolves conflicts.
+
+Print after successful merge:
+```
+Merge complete
+─────────────────────────────────────
+Strategy : {squash merge / merge commit / rebase}
+Branch   : implement/{keyword} → {$BASE_BRANCH}
+Commit   : {resulting commit hash and subject}
+─────────────────────────────────────
+```
+
+#### 13-pre-5 — Remove worktree
+
+```bash
+git -C "$REPO_ROOT" worktree remove "$WORKTREE_PATH" --force
+```
+
+Print: `✅ Worktree removed: {$WORKTREE_PATH}`
+
+#### 13-pre-6 — Delete worktree branch (optional)
+
+Call `ask_user_input_v0`:
+- **Question**: "Delete the worktree branch `implement/{keyword}`?"
+- **Options**:
+  - `Yes — delete branch (the work is already merged into {$BASE_BRANCH}; branch is no longer needed)`
+  - `No — keep branch (useful for auditing the original branch history or cherry-picking later)`
+
+If Yes:
+```bash
+git -C "$REPO_ROOT" branch -D "implement/{keyword}"
+```
+Print: `Branch implement/{keyword} deleted.`
+
+If No: print: `Branch implement/{keyword} retained.`
+
+---
+
+### 13-0 — Git commit (conditional)
+
+**Skip this section if `$USE_WORKTREE = true`** — the merge in 13-pre already produced the final commit.
+
+**Skip this section if `$IS_GIT_REPO = false`.**
 
 Run the following to build a change summary for the user:
 
 ```bash
-git status --short
+git -C "$REPO_ROOT" status --short
 ```
 
 Print:
@@ -1112,24 +1388,17 @@ Git status
 ─────────────────────────────────────
 ```
 
-**[13-0-2] Ask user**
-
 Call `ask_user_input_v0`:
 - **Question**: "Commit the changes above to the git repository?"
 - **Options**: `Yes — commit` / `No — skip`
 
-**If Yes:**
-
-Call `ask_user_input_v0`:
-- **Question**: "Enter a commit message (leave blank to use the default below):"
+**If Yes** — ask for commit message:
+- **Question**: "Enter a commit message:"
 - **Options**: `Use default: feat: implement {keyword}` / `Enter custom message`
 
-If the user selects the default, use `feat: implement {keyword}` as the commit message.
-If the user enters a custom message, use that instead.
-
 Then run:
-
 ```bash
+cd "$REPO_ROOT"
 git add -A
 git commit -m "{commit message}"
 ```
@@ -1154,9 +1423,9 @@ Print the final report and terminate the workflow:
 ✅ /implement workflow complete
 
 keyword          : {keyword}
-API contract     : .y/contracts/{keyword}.md  (n/a if no HTTP endpoints)
-plan             : .y/plans/{keyword}.md
-test scenarios   : .y/tests/{keyword}.md  (n/a if $RUN_TESTS=false)
+API contract     : {$REPO_ROOT}/.y/contracts/{keyword}.md  (n/a if no HTTP endpoints)
+plan             : {$REPO_ROOT}/.y/plans/{keyword}.md
+test scenarios   : {$REPO_ROOT}/.y/tests/{keyword}.md  (n/a if $RUN_TESTS=false)
 test code        : {test output path from Scope}  (n/a if skipped)
 lint & syntax    : {clean / N issues fixed}
 spec↔test check  : done (n/a if skipped) / Momus fixes: {N or "none"}
@@ -1165,18 +1434,28 @@ test results     : passed {N} / excluded {N} / total {N}  (n/a if skipped)
 refactor         : done  (n/a if $RUN_REFACTOR=false)
 memory saved     : done
 troubleshooting  : done (skipped if nothing to record)
-git commit       : {commit hash + message / skipped by user / not a git repo}
+
+worktree         : {enabled / disabled}
+  branch         : implement/{keyword}  (n/a if disabled)
+  merge strategy : {squash merge / merge commit / rebase / n/a}
+  merge result   : {commit hash + subject / conflict — manual resolution required / n/a}
+  branch cleanup : {deleted / retained / n/a}
+
+git commit       : {commit hash + message / skipped by user / handled by merge / not a git repo}
 
 All tasks completed successfully.
 ```
 
-**[Checklist update]** In `.y/plans/{keyword}.md`, update:
+**[Checklist update]** In `$REPO_ROOT/.y/plans/{keyword}.md`, update:
 ```
 - [x] PHASE 13: Final report
 ```
 
-**[Cleanup]** Delete `.y/boulder.json`.
+**[Cleanup]** Delete `$REPO_ROOT/.y/boulder.json`.
 This signals the session is fully closed. A future `/implement` call will start a new session.
-Note: If the workflow was aborted before reaching this PHASE (e.g. user chose "Abort workflow" in PHASE 9), `boulder.json` is intentionally left in place so the next call can resume.
+
+> **Exception — merge conflict**: If PHASE 13-pre-4 detected a conflict and terminated early, `boulder.json` is **not** deleted. The worktree is left in place. The user resolves conflicts manually, then calls `/implement` with no arguments to resume from the merge step.
+
+> **Exception — user abort**: If the workflow was aborted before reaching PHASE 13 (e.g. user chose "Abort workflow" in PHASE 9), `boulder.json` is intentionally left in place so the next call can resume. The worktree (if created) is also left in place.
 
 ✅ PHASE 13 done
