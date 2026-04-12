@@ -38,15 +38,34 @@ Skip `### Unresolved` sections entirely.
 For every resolved entry:
 1. Strip the date, feature name, and project-specific identifiers (file names, class names, variable names, package names like `@chkvec/*`).
 2. Keep the **category tag** (e.g. `[Architecture]`, `[Lint]`, `[Test]`, `[Routing]`, `[Config]`, `[Import]`, `[Type]`, `[Error]`, `[Scope]`, `[JSDoc]`, `[Code-smell]`).
-3. Rewrite as a **one-line imperative prevention rule** — generic enough to apply to any project of the same type, but specific enough to be actionable.
+3. Rewrite as a **one-line deterministic constraint** using `MUST` / `MUST NOT` / `NEVER` / `ALWAYS` keywords — generic enough to apply to any project of the same type, but specific enough for an AI agent to verify compliance mechanically. Include the triggering lint/tsc rule name if applicable.
 4. If multiple entries reduce to the same rule, deduplicate.
 
-### STEP 4 — Compose RULES.md content
+### STEP 4 — Read existing RULES.md and compose merged content
 
-Group the generalized rules under headers by project type:
+**4-1. Read existing RULES.md first.**
+
+```
+cat RULES.md 2>/dev/null || echo "__EMPTY__"
+```
+
+If the file exists, parse its full structure — headers, sub-headers, and every rule line.
+Store this as `existing_rules`.
+
+**4-2. Compose new rules block.**
+
+Group the generalized rules under headers by project type.
+The RULES.md file MUST begin with the following mandatory compliance header:
 
 ```markdown
-## Node.js Backend Rules
+<!-- MANDATORY: All AI coding agents MUST read and comply with every rule in this file before generating or modifying code. Violations of these rules have caused production bugs in prior sessions. -->
+# CODING RULES
+
+> ⚠️ **MANDATORY COMPLIANCE** — Every rule below was derived from actual implementation failures.
+> All AI agents (including delegated sub-agents) MUST treat these rules as hard constraints during code generation, review, and refactoring.
+> Violating any rule listed here is equivalent to introducing a known bug.
+
+## NODE.JS BACKEND RULES {#backend-rules}
 
 ### Architecture
 - ...
@@ -57,16 +76,32 @@ Group the generalized rules under headers by project type:
 ### Test
 - ...
 
-## Frontend Rules
+## FRONTEND RULES {#frontend-rules}
 
 ### ...
 
-## Shared / Library Rules
+## SHARED / LIBRARY RULES {#shared-rules}
 
 ### ...
 ```
 
-If the root `RULES.md` already exists, read it first. Merge new rules under matching headers; do NOT duplicate rules that already exist.
+**4-3. Deduplicate against existing rules.**
+
+For each new rule, compare against `existing_rules`:
+- If an existing rule covers the **same constraint** (even if worded differently), skip the new rule.
+- If a new rule is a **stricter or more specific** version of an existing rule, replace the existing rule with the new one.
+- If no semantic overlap exists, append the new rule under the matching header.
+
+When comparing, match on semantic intent — not on exact string equality.
+
+**4-4. Write rules in AI-agent-optimized language.**
+
+Rules are consumed by LLM coding agents, not humans. Apply these writing guidelines:
+- Use deterministic, unambiguous phrasing: `MUST`, `MUST NOT`, `NEVER`, `ALWAYS`.
+- Prefer machine-parseable patterns: `[category] CONSTRAINT: <rule>` format.
+- Include the triggering lint rule or error name when applicable (e.g. `@typescript-eslint/no-explicit-any`).
+- Avoid hedging words like "prefer", "consider", "try to" — state the constraint absolutely.
+- Each rule should be self-contained — an agent reading a single rule in isolation must understand the full constraint without needing surrounding context.
 
 ### STEP 5 — Present to user for approval
 
@@ -84,11 +119,15 @@ If the user says "Cancel", stop without modifying any files.
 
 ### STEP 6 — Write RULES.md
 
-Write (or merge into) the root `RULES.md` with the approved content.
+Write the merged content to the root `RULES.md`.
+- If the file already existed, this is a **merge** — existing rules are preserved, new rules are appended under matching headers, duplicates are removed.
+- If the file did not exist, create it fresh with the mandatory compliance header.
+
 Verify with:
 ```
-cat RULES.md
+head -5 RULES.md
 ```
+Confirm the mandatory compliance HTML comment is present on line 1.
 
 ### STEP 7 — Delete processed TROUBLE_SHOOT.md files
 
@@ -110,5 +149,7 @@ Report a summary of files deleted.
 - Never invent rules that are not grounded in an actual TROUBLE_SHOOT.md entry.
 - Preserve the category tags verbatim — they are used for cross-referencing.
 - Rules must be written in English.
-- Use short imperative phrasing: "Do X" / "Never do Y" / "Always verify Z".
-- Do NOT include the original "What went wrong" or "Detected by" details — only the prevention rule.
+- Use deterministic constraint language: `MUST` / `MUST NOT` / `NEVER` / `ALWAYS` — avoid hedging words like "prefer", "consider", "should".
+- Do NOT include the original "What went wrong" or "Detected by" details — only the prevention constraint.
+- The RULES.md mandatory compliance header (HTML comment + blockquote) MUST always be present at the top of the file. If the existing file lacks it, prepend it.
+- When merging, preserve the existing rule order within each section — append new rules at the end of each sub-header group.
