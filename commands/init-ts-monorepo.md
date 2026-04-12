@@ -6,7 +6,33 @@ Initialize a TypeScript pnpm monorepo: generate AGENTS.md / RULES.md → scaffol
 
 ---
 
+## TODO MANAGEMENT — Required
+
+커멘드 시작 직후 `todowrite`를 호출하여 전체 페이즈를 등록하라. 각 페이즈 진입 시 `in_progress`, 완료 시 `completed`, 조건부 스킵 시 `cancelled`로 업데이트하라.
+
+**`todowrite`는 전체 목록을 교체하므로, 호출 시 항상 전체 항목을 포함해야 한다.**
+
+### 초기 `todowrite` 호출 (커멘드 시작 즉시)
+
+```json
+[
+  { "id": "p0", "content": "PHASE 0: Check environment (abort condition)",        "priority": "high",   "status": "pending" },
+  { "id": "p1", "content": "PHASE 1: Collect conventions (naming/style)",         "priority": "high",   "status": "pending" },
+  { "id": "p2", "content": "PHASE 2: Write AGENTS.md and RULES.md",               "priority": "high",   "status": "pending" },
+  { "id": "p3", "content": "PHASE 3: Scaffold workspace files (24 files)",        "priority": "high",   "status": "pending" },
+  { "id": "p4", "content": "PHASE 4: git init",                                   "priority": "medium", "status": "pending" },
+  { "id": "p5", "content": "PHASE 5: Verify (install/typecheck/lint/test)",       "priority": "high",   "status": "pending" },
+  { "id": "p6", "content": "PHASE 6: Record troubleshooting",                     "priority": "medium", "status": "pending" },
+  { "id": "p7", "content": "PHASE 7: Initial Commit (user approval required)",    "priority": "medium", "status": "pending" },
+  { "id": "p8", "content": "PHASE 8: Report",                                     "priority": "low",    "status": "pending" }
+]
+```
+
+---
+
 ## PHASE 0: Check environment
+
+> ▶ `todowrite`: `p0` → `in_progress`
 
 Check whether `.git/` exists (used in PHASE 4 to decide if `git init` is needed).
 
@@ -21,7 +47,11 @@ ERROR: Non-empty workspace detected.
 
 ---
 
+> ✅ `todowrite`: `p0` → `completed`
+
 ## PHASE 1: Collect conventions
+
+> ▶ `todowrite`: `p1` → `in_progress`
 
 Use `ask_user_input_v0` to collect the following. Project name = current directory name (e.g. `my-app` → scope `@my-app`).
 
@@ -39,7 +69,11 @@ Q-T2. Function style:    arrow-first | function-first | mixed (function at top-l
 
 ---
 
+> ✅ `todowrite`: `p1` → `completed`
+
 ## PHASE 2: Write AGENTS.md and RULES.md
+
+> ▶ `todowrite`: `p2` → `in_progress`
 
 Fill `{…}` placeholders with PHASE 1 values. Use `write_file` — no shell redirects (`echo`, heredoc).
 
@@ -58,18 +92,14 @@ Fill `{…}` placeholders with PHASE 1 values. Use `write_file` — no shell red
 
 ```
 {project-name}/
-├── apps/               # Deployable apps (each has its own AGENTS.md)
+├── apps/                    # Deployable apps (each has its own AGENTS.md)
 ├── packages/
-│   └── core/           # Shared configs and libraries
-│       ├── tsconfig/
-│       │   ├── base.json        # Base tsconfig extended by all packages
-│       │   ├── app.json         # Node/Bun apps
-│       │   └── react-lib.json   # React packages
-│       ├── eslint/
-│       │   ├── index.js         # Base ESLint flat config
-│       │   ├── react.js         # React extension
-│       │   └── node.js          # Node/API extension
-│       └── src/index.ts         # Shared types/utils entry point
+│   ├── core/                # Shared configs and libraries
+│   │   ├── tsconfig/        # Base tsconfig variants (base, app, react-lib)
+│   │   ├── eslint/          # ESLint flat config variants (base, react, node)
+│   │   └── src/             # Shared types/utils entry point
+│   └── dto/                 # Shared DTOs, Zod schemas, and API type definitions (single source of truth)
+│       └── src/             # DTO interfaces, Zod schemas, request/response types, enums
 ├── AGENTS.md
 ├── RULES.md
 ├── pnpm-workspace.yaml
@@ -142,7 +172,7 @@ Type-check and test: run autonomously after implementation. Build/deploy: requir
 
 ## FILE REFERENCES
 
-Load `RULES.md` before running `/implement`. Never start without it.
+Load `RULES.md` before running `/start-work`. Never start without it.
 
 ```
 @AGENTS.md   # this file
@@ -155,6 +185,8 @@ Load only the relevant section anchor:
 | -------------------- | ---------------------------------------- |
 | Writing/editing code | `RULES.md#code-standards`                |
 | Using the logger     | `RULES.md#logger`                        |
+| DTO / API types      | `RULES.md#dto`                           |
+| Implementing API     | `RULES.md#contract-compliance`           |
 | API structure/layers | package `ARCHITECTURE.md`                |
 | Frontend structure   | package `ARCHITECTURE.md`                |
 | CLI structure        | package `ARCHITECTURE.md`                |
@@ -174,6 +206,8 @@ Fill `{FILE_NAMING}`, `{CLASS_NAMING}`, `{INTERFACE_NAMING}`, `{METHOD_NAMING}`,
 - [`#code-standards`](#code-standards) — TypeScript · naming · bundling · Do/Don't
 - [`#logger`](#logger) — Logger import paths · level rules · Do/Don't
 - [`#bigint-json`](#bigint-json) — BigInt-safe JSON · Express middleware · fetch wrapper
+- [`#dto`](#dto) — DTO & API type definitions · centralized in packages/dto
+- [`#contract-compliance`](#contract-compliance) — API contract verification during implementation
 
 ---
 
@@ -275,6 +309,119 @@ logger.error('Payment failed', error);
 - **Don't** log sensitive data (passwords, tokens, PII) at any level
 ---
 
+## DTO & API TYPES {#dto}
+
+> **Single source of truth.** All DTOs, Zod schemas, and API type definitions live exclusively in `packages/dto`.
+> No package may define its own DTO/request/response type for cross-package communication.
+
+### Ownership rule
+
+| Scenario | Where to define | Where to import from |
+|----------|-----------------|----------------------|
+| API request body (schema + type) | `packages/dto/src` | `@{scope}/dto` |
+| API response shape (schema + type) | `packages/dto/src` | `@{scope}/dto` |
+| Shared enum (status, role, …) | `packages/dto/src` | `@{scope}/dto` |
+| Validation function | `packages/dto/src` | `@{scope}/dto` |
+| Internal domain type (not exposed via API) | inside the package | same package only |
+
+### Directory layout
+
+```
+packages/dto/
+└── src/
+    ├── index.ts                       # Re-exports everything — the only public surface
+    └── {domain}/
+        ├── {domain}.schema.ts         # Zod schemas → infer TypeScript types from here
+        ├── {domain}.response.ts       # Response types (no Zod needed — output only)
+        └── {domain}.enum.ts           # Shared enums
+```
+
+### Type definition style
+
+**Types are always inferred from Zod schemas** — never declare a type independently alongside a schema.
+
+```typescript
+// packages/dto/src/user/user.schema.ts
+import { z } from 'zod';
+
+export const CreateUserSchema = z.object({
+  email: z.string().email(),
+  name:  z.string().min(1).max(100),
+  role:  z.enum(['ADMIN', 'MEMBER']),
+});
+
+export const UpdateUserSchema = CreateUserSchema.partial().extend({
+  id: z.string().uuid(),
+});
+
+// Types are inferred — never written by hand
+export type CreateUserRequest = z.infer<typeof CreateUserSchema>;
+export type UpdateUserRequest = z.infer<typeof UpdateUserSchema>;
+```
+
+```typescript
+// packages/dto/src/user/user.response.ts
+// Response types have no Zod schema — they are pure output shapes.
+export interface UserResponse {
+  id:        string;
+  email:     string;
+  name:      string;
+  role:      string;
+  createdAt: string; // ISO 8601
+}
+
+export interface UserListResponse {
+  items: UserResponse[];
+  total: number;
+}
+```
+
+### Validation usage
+
+**API server — router / middleware**
+
+```typescript
+import { CreateUserSchema } from '@{scope}/dto';
+
+router.post('/users', (req, res, next) => {
+  const result = CreateUserSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ errors: result.error.flatten() });
+    return;
+  }
+  next(); // result.data is typed as CreateUserRequest
+});
+```
+
+**Client — Frontend / CLI (pre-flight validation)**
+
+```typescript
+import { CreateUserSchema, type CreateUserRequest } from '@{scope}/dto';
+
+function validateBeforeSend(payload: unknown): CreateUserRequest {
+  return CreateUserSchema.parse(payload); // throws ZodError on failure
+}
+
+// Or non-throwing:
+const result = CreateUserSchema.safeParse(payload);
+if (!result.success) {
+  console.error(result.error.flatten());
+}
+```
+
+### Do / Don't
+
+- **Do** define types via `z.infer<typeof Schema>` — never write a duplicate `interface` alongside a schema
+- **Do** add new schemas in `packages/dto/src/{domain}/{domain}.schema.ts` and re-export from `src/index.ts`
+- **Do** keep `packages/dto` framework-agnostic — no Express, Prisma, or React imports
+- **Do** use `.response.ts` (plain `interface`) for response shapes — response validation is the server's responsibility
+- **Don't** duplicate a DTO or schema locally inside `apps/*` or other `packages/*`
+- **Don't** import Prisma model types in responses — map to a response interface first
+- **Don't** use `class` for DTOs
+- **Don't** use `z.parse()` in routers where a 400 response is expected — use `.safeParse()` and handle the error explicitly
+
+---
+
 ## BIGINT JSON {#bigint-json}
 
 > Apply when any Prisma column or API field uses the `BigInt` type.
@@ -338,6 +485,36 @@ const order = await bigintFetch<Order>('/api/orders', {
 - **Don't** use native `JSON.stringify` / `JSON.parse` for API payloads containing BigInt
 - **Don't** cast `bigint` to `Number` — values > 2^53 − 1 lose precision silently
 - **Don't** use `.toString()` inline as a workaround — it breaks downstream type contracts
+
+---
+
+## CONTRACT COMPLIANCE {#contract-compliance}
+
+> Apply when `.sisyphus/contract/{keyword}.md` exists for the current task.
+> This section is enforced during `/start-work` execution.
+
+Before marking any endpoint implementation as complete, the implementing agent MUST:
+
+1. Read `$REPO_ROOT/.sisyphus/contract/{keyword}.md`
+2. Compare the actual response shape (success body, status code, error codes) against the contract
+3. If any mismatch exists, fix the code before proceeding to the next task
+
+### Checklist per endpoint
+
+| Check | What to verify |
+|-------|---------------|
+| Success status code | Matches contract exactly (e.g. `201` not `200`) |
+| Success body shape | All field names, types, and nesting match |
+| Error status codes | Every error case in the contract is handled |
+| Error codes | String error codes match verbatim (e.g. `ALREADY_REFUNDED`) |
+| Envelope format | `{ ok, data }` / `{ ok, message, code }` matches project convention |
+
+### Do / Don't
+
+- **Do** read the contract file at the start of each endpoint implementation
+- **Do** fix mismatches immediately — do not defer to test phase
+- **Don't** invent response fields or error codes not in the contract
+- **Don't** skip this check even if the plan's `### Expected Contract` subsection is present — always verify against the contract file as the single source of truth
 ```
 
 ### 2-3. Save paths
@@ -349,9 +526,13 @@ const order = await bigintFetch<Order>('/api/orders', {
 
 Report saved paths to the user.
 
+> ✅ `todowrite`: `p2` → `completed`
+
 ---
 
 ## PHASE 3: Scaffold workspace files
+
+> ▶ `todowrite`: `p3` → `in_progress`
 
 Use current directory name as project name and scope. Create files in order using `write_file`.
 
@@ -596,9 +777,102 @@ describe("packages/core smoke test", () => {
 });
 ```
 
-**17. `apps/.gitkeep`** — empty file to track directory
+**17. `packages/dto/package.json`**
 
-**18. `.gitignore`** — skip if already exists
+```jsonc
+{
+  "name": "@{scope}/dto",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --fix .",
+    "test": "vitest run",
+  },
+  "dependencies": {
+    "zod": "^3",
+  },
+}
+```
+
+**18. `packages/dto/tsconfig.json`**
+
+```jsonc
+{
+  "extends": "../core/tsconfig/base.json",
+  "include": ["src/**/*.ts"]
+}
+```
+
+**19. `packages/dto/eslint.config.js`**
+
+```javascript
+import nodeConfig from "../core/eslint/node.js";
+
+export default [
+  ...nodeConfig,
+  {
+    files: ["**/*.ts"],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    ignores: ["dist/", "eslint.config.js"],
+  },
+];
+```
+
+**20. `packages/dto/src/index.ts`**
+
+```typescript
+// Central re-export for all DTOs, Zod schemas, and API type definitions.
+// Add new domain exports here as packages/dto grows.
+// Each domain module re-exports: schema, inferred request types, response interfaces, enums.
+//
+// Example:
+//   export * from './user/user.schema.js';   // CreateUserSchema, UpdateUserSchema, CreateUserRequest, …
+//   export * from './user/user.response.js'; // UserResponse, UserListResponse
+//   export * from './user/user.enum.js';     // UserRole, UserStatus
+```
+
+**21. `packages/dto/src/index.test.ts`**
+
+```typescript
+import { describe, it, expect } from "vitest";
+
+describe("packages/dto smoke test", () => {
+  it("workspace is initialized", () => {
+    expect(true).toBe(true);
+  });
+});
+```
+
+**22. `packages/dto/vitest.config.ts`**
+
+```typescript
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    globals: false,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      thresholds: { lines: 80, functions: 80, branches: 80 },
+    },
+  },
+});
+```
+
+**23. `apps/.gitkeep`** — empty file to track directory
+
+**24. `.gitignore`** — skip if already exists
 
 ```
 node_modules/
@@ -609,9 +883,13 @@ dist/
 coverage/
 ```
 
+> ✅ `todowrite`: `p3` → `completed`
+
 ---
 
 ## PHASE 4: git init
+
+> ▶ `todowrite`: `p4` → `in_progress` (no .git) or `cancelled` (already exists)
 
 Skip if `.git/` already exists. Otherwise:
 
@@ -623,9 +901,13 @@ git branch -M main
 If `git user.name` / `user.email` is not set, notify user and record the warning.
 The initial commit will be requested in **PHASE 7: Initial Commit** after verification and troubleshooting.
 
+> ✅ `todowrite`: `p4` → `completed`
+
 ---
 
 ## PHASE 5: Verify
+
+> ▶ `todowrite`: `p5` → `in_progress`
 
 Run in order. Do not report completion without running this.
 
@@ -634,41 +916,34 @@ pnpm install
 pnpm --filter @{scope}/core tsc --noEmit
 pnpm --filter @{scope}/core lint
 pnpm --filter @{scope}/core test
+pnpm --filter @{scope}/dto tsc --noEmit
+pnpm --filter @{scope}/dto lint
+pnpm --filter @{scope}/dto test
 ```
 
 Report immediately if any command is missing or fails.
+
+> ✅ `todowrite`: `p5` → `completed`
 
 ---
 
 ## PHASE 6: Record troubleshooting
 
-Call `@document-writer` with:
+> ▶ `todowrite`: `p6` → `in_progress`
 
-> Extract AI mistakes and incorrect implementations from this entire workflow and record them in `TROUBLE_SHOOT.md` at the project root.
->
-> **What to extract** — record only these types (exclude normal design decisions or user requirement changes):
-> - Code incorrectly implemented by AI that required fixes
-> - Repeated error patterns in the self-correction loop
-> - Gaps or errors flagged by Metis or Momus
-> - Assertion translation errors found in spec↔test validation
->
-> **Format** — write each item as:
->
-> ```markdown
-> ## [YYYY-MM-DD] {task keyword}
->
-> - {one-line rule or checkpoint to prevent recurrence}
-> - {add lines if multiple items}
-> ```
->
-> **File handling:**
-> - If `TROUBLE_SHOOT.md` already exists — keep existing content and prepend the new entry
-> - If it does not exist — create it
-> - If there are no troubleshooting items from this workflow — skip this step
+Run `/gen-trouble-shoot --source init --label init-ts-monorepo`
+
+> `/gen-trouble-shoot` will scan this session, extract AI mistakes and incorrect
+> implementations that occurred during scaffolding, and write them to `TROUBLE_SHOOT.md`.
+> No action is needed here beyond invoking the command.
+
+> ✅ `todowrite`: `p6` → `completed`
 
 ---
 
 ## PHASE 7: Initial Commit ⚠️
+
+> ▶ `todowrite`: `p7` → `in_progress`
 
 If `.git/` does not exist in the project root, skip this phase entirely.
 
@@ -685,6 +960,7 @@ Proceed with the initial git commit?
 
   - Add pnpm-workspace.yaml with apps/* and packages/* globs
   - Add packages/core with tsconfig, eslint, vitest shared configs
+  - Add packages/dto as centralized DTO and API type definitions package
   - Add AGENTS.md, RULES.md"
 
   - Yes — run git commit now
@@ -701,12 +977,17 @@ git commit -m "chore: initialize pnpm monorepo workspace
 
 - Add pnpm-workspace.yaml with apps/* and packages/* globs
 - Add packages/core with tsconfig, eslint, vitest shared configs
+- Add packages/dto as centralized DTO and API type definitions package
 - Add AGENTS.md, RULES.md"
 ```
+
+> ✅ `todowrite`: `p7` → `completed`
 
 ---
 
 ## PHASE 8: Report
+
+> ▶ `todowrite`: `p8` → `in_progress`
 
 ```
 AGENTS.md / RULES.md  : ./AGENTS.md, ./RULES.md
@@ -716,6 +997,8 @@ Workspace files
   packages/core : tsconfig/{base,app,react-lib}.json
                   eslint/{index,react,node}.js
                   vitest.config.ts, src/index.ts, src/index.test.ts
+  packages/dto  : package.json, tsconfig.json, eslint.config.js, vitest.config.ts
+                  src/index.ts, src/index.test.ts
   apps/         : .gitkeep
 
 git
@@ -723,11 +1006,16 @@ git
   initial commit: done
 
 Verification
-  pnpm install  : {PASS | FAIL}
-  tsc --noEmit  : {PASS | FAIL}
-  lint          : {PASS | FAIL}
-  vitest run    : {PASS | FAIL}
+  pnpm install       : {PASS | FAIL}
+  core tsc --noEmit  : {PASS | FAIL}
+  core lint          : {PASS | FAIL}
+  core vitest run    : {PASS | FAIL}
+  dto  tsc --noEmit  : {PASS | FAIL}
+  dto  lint          : {PASS | FAIL}
+  dto  vitest run    : {PASS | FAIL}
 ```
+
+> ✅ `todowrite`: `p8` → `completed`
 
 ---
 

@@ -12,15 +12,50 @@ Initialize a TypeScript React project at `$ARGUMENTS`.
 
 ---
 
+## TODO MANAGEMENT — Required
+
+커멘드 시작 직후 `todowrite`를 호출하여 전체 페이즈를 등록하라. 각 페이즈 진입 시 `in_progress`, 완료 시 `completed`, 조건부 스킵 시 `cancelled`로 업데이트하라.
+
+**`todowrite`는 전체 목록을 교체하므로, 호출 시 항상 전체 항목을 포함해야 한다.**
+
+### 초기 `todowrite` 호출 (커멘드 시작 즉시)
+
+```json
+[
+  { "id": "p1",   "content": "PHASE 1: Resolve Scope (monorepo/standalone)",          "priority": "high",   "status": "pending" },
+  { "id": "p2",   "content": "PHASE 2: Inherit or Collect CODE STANDARDS",            "priority": "high",   "status": "pending" },
+  { "id": "p3",   "content": "PHASE 3: Router Interview (tanstack/none)",              "priority": "high",   "status": "pending" },
+  { "id": "p4",   "content": "PHASE 4: Scan Codebase",                                "priority": "medium", "status": "pending" },
+  { "id": "p5",   "content": "PHASE 5: Write AGENTS.md",                              "priority": "high",   "status": "pending" },
+  { "id": "p5m",  "content": "PHASE 5-M: Update root AGENTS.md (monorepo only)",      "priority": "medium", "status": "pending" },
+  { "id": "p6",   "content": "PHASE 6: Write RULES.md",                               "priority": "high",   "status": "pending" },
+  { "id": "p7",   "content": "PHASE 7: Write ARCHITECTURE.md",                        "priority": "high",   "status": "pending" },
+  { "id": "p8",   "content": "PHASE 8: Scaffold Project",                             "priority": "high",   "status": "pending" },
+  { "id": "p9",   "content": "PHASE 9: git init (standalone only)",                   "priority": "medium", "status": "pending" },
+  { "id": "p10",  "content": "PHASE 10: Validate (install/tsc/eslint/vitest)",        "priority": "high",   "status": "pending" },
+  { "id": "p11",  "content": "PHASE 11: Record troubleshooting",                      "priority": "medium", "status": "pending" },
+  { "id": "p12",  "content": "PHASE 12: Initial Commit (user approval required)",     "priority": "medium", "status": "pending" },
+  { "id": "p13",  "content": "PHASE 13: Report",                                      "priority": "low",    "status": "pending" }
+]
+```
+
+---
+
 ## PHASE 1: Resolve Scope
+
+> ▶ `todowrite`: `p1` → `in_progress`
 
 Set `DIR=$ARGUMENTS`, `PROJECT_NAME=basename(DIR)`.  
 Detect monorepo by searching ancestors for `pnpm-workspace.yaml`.  
 Set `MODE=monorepo` or `MODE=standalone`.
 
+> ✅ `todowrite`: `p1` → `completed`
+
 ---
 
 ## PHASE 2: Inherit or Collect CODE STANDARDS
+
+> ▶ `todowrite`: `p2` → `in_progress`
 
 **If MODE=monorepo AND root RULES.md exists:**  
 Read `<root>/RULES.md#code-standards`. Inherit as-is. Skip to PHASE 3.
@@ -38,7 +73,11 @@ Q-T2. Fn style:        arrow-first | function-first | mixed
 
 ---
 
+> ✅ `todowrite`: `p2` → `completed`
+
 ## PHASE 3: Router Interview
+
+> ▶ `todowrite`: `p3` → `in_progress`
 
 ```
 Does this project need client-side routing?
@@ -48,16 +87,24 @@ Does this project need client-side routing?
 
 Set `ROUTER=tanstack | none`.
 
+> ✅ `todowrite`: `p3` → `completed`
+
 ---
 
 ## PHASE 4: Scan Codebase
 
+> ▶ `todowrite`: `p4` → `in_progress`
+
 Scan `DIR` (max 2 levels). Detect file naming patterns, tech stack from `package.json`, package manager.  
 Show results. Confirm with user. Skip re-asking scan-confirmed items.
+
+> ✅ `todowrite`: `p4` → `completed`
 
 ---
 
 ## PHASE 5: Write AGENTS.md
+
+> ▶ `todowrite`: `p5` → `in_progress`
 
 Save to `DIR/AGENTS.md`. Write two variants based on MODE.
 
@@ -158,7 +205,31 @@ Commits: Conventional Commits (`feat:` `fix:` `chore:` `docs:` `refactor:` `test
 
 ---
 
+> ✅ `todowrite`: `p5` → `completed`
+
+## PHASE 5-M: Update root AGENTS.md PROJECT STRUCTURE (monorepo mode only)
+
+> ▶ `todowrite`: `p5m` → `in_progress` (monorepo) or `cancelled` (standalone)
+
+**Skip this phase if MODE=standalone.**
+
+Open the root `AGENTS.md` (found during PHASE 1 monorepo detection).
+
+Locate the `## PROJECT STRUCTURE` fenced code block and find the line for the parent directory (`apps/` or `packages/`). Append the new entry as a child item:
+
+```
+│   └── {TARGET_DIR_NAME}/   # React frontend
+```
+
+If the parent directory line already has child entries, use `├──` for existing entries and `└──` for the new last entry. Save the updated root `AGENTS.md`.
+
+> ✅ `todowrite`: `p5m` → `completed`
+
+---
+
 ## PHASE 6: Write RULES.md
+
+> ▶ `todowrite`: `p6` → `in_progress`
 
 Save to `DIR/RULES.md`.  
 In monorepo: save to `<root>/RULES.md` only if it does not exist — never overwrite.
@@ -325,7 +396,11 @@ const order = await bigintFetch<Order>('/api/orders', {
 
 ---
 
+> ✅ `todowrite`: `p6` → `completed`
+
 ## PHASE 7: Write ARCHITECTURE.md
+
+> ▶ `todowrite`: `p7` → `in_progress`
 
 Save to `DIR/ARCHITECTURE.md`. Use this template:
 
@@ -380,7 +455,11 @@ User action → Route / Page → Custom hook → Store or Server Action → API 
 
 ---
 
+> ✅ `todowrite`: `p7` → `completed`
+
 ## PHASE 8: Scaffold Project
+
+> ▶ `todowrite`: `p8` → `in_progress`
 
 **Abort condition:** If `DIR/src/` already exists, stop immediately and report:
 
@@ -456,9 +535,13 @@ devDependencies: `typescript ^5` · `vite ^6` · `@vitejs/plugin-react ^4` · `v
 >
 > (In React projects, use the logger in server-side code and API client layers.)
 
+> ✅ `todowrite`: `p8` → `completed`
+
 ---
 
 ## PHASE 9: git init (standalone mode only)
+
+> ▶ `todowrite`: `p9` → `in_progress` (standalone) or `cancelled` (monorepo)
 
 **Skip this phase if MODE=monorepo** — the root repository already covers this package.
 
@@ -474,9 +557,13 @@ git branch -M main
 If `git user.name` / `user.email` is not configured, notify the user and record the warning.
 The initial commit will be requested in **PHASE 12: Initial Commit** after validation and troubleshooting.
 
+> ✅ `todowrite`: `p9` → `completed`
+
 ---
 
 ## PHASE 10: Validate
+
+> ▶ `todowrite`: `p10` → `in_progress`
 
 Run automatically. Do not report completion without running all steps.
 
@@ -487,42 +574,27 @@ pnpm eslint --fix .
 pnpm vitest run
 ```
 
+> ✅ `todowrite`: `p10` → `completed`
+
 ---
 
 ## PHASE 11: Record troubleshooting
 
-Call `@document-writer` with:
+> ▶ `todowrite`: `p11` → `in_progress`
 
-> Extract AI mistakes and incorrect implementations from this entire workflow and record them in `TROUBLE_SHOOT.md` at the project root.
->
-> **What to extract** — record only these types (exclude normal design decisions or user requirement changes):
-> - Code incorrectly implemented by AI that required fixes — **even if fixed during scaffolding**
-> - Repeated error patterns in the self-correction loop
-> - Gaps or errors flagged by Metis or Momus
-> - Assertion translation errors found in spec↔test validation
->
-> **Trigger rule:** if ANY item above occurred during this workflow, create or update `TROUBLE_SHOOT.md`.
-> The fact that an issue was resolved before completion does NOT exempt it from being recorded —
-> resolved issues are the most valuable entries because they contain the fix.
-> Skip only if the workflow completed with zero AI mistakes and zero self-correction loops.
->
-> **Format** — write each item as:
->
-> ```markdown
-> ## [YYYY-MM-DD] {task keyword}
->
-> - {one-line rule or checkpoint to prevent recurrence}
-> - {add lines if multiple items}
-> ```
->
-> **File handling:**
-> - If `TROUBLE_SHOOT.md` already exists — keep existing content and prepend the new entry
-> - If it does not exist — create it
-> - If there are no troubleshooting items from this workflow — skip this step
+Run `/gen-trouble-shoot --source init --label init-ts-react`
+
+> `/gen-trouble-shoot` will scan this session, extract AI mistakes and incorrect
+> implementations that occurred during scaffolding, and write them to `TROUBLE_SHOOT.md`.
+> No action is needed here beyond invoking the command.
+
+> ✅ `todowrite`: `p11` → `completed`
 
 ---
 
 ## PHASE 12: Initial Commit ⚠️
+
+> ▶ `todowrite`: `p12` → `in_progress`
 
 If `.git/` does not exist in the project root, skip this phase entirely.
 
@@ -553,9 +625,13 @@ git add .
 git commit -m "chore: initialize TypeScript React project\n\n- Add AGENTS.md, RULES.md, ARCHITECTURE.md\n- Scaffold React 19 + Vite + shadcn/ui structure"
 ```
 
+> ✅ `todowrite`: `p12` → `completed`
+
 ---
 
 ## PHASE 13: Report
+
+> ▶ `todowrite`: `p13` → `in_progress`
 
 ```
 AGENTS.md       → DIR/AGENTS.md
@@ -574,6 +650,10 @@ Next
   Add shadcn component : pnpm dlx shadcn@latest add {name}
   Implement features   : /implement {task}
 ```
+
+---
+
+> ✅ `todowrite`: `p13` → `completed`
 
 ---
 

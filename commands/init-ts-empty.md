@@ -14,7 +14,40 @@ The project name is derived from the **target directory name** — do not ask th
 
 ---
 
+## TODO MANAGEMENT — Required
+
+커멘드 시작 직후 `todowrite`를 호출하여 전체 페이즈를 등록하라. 각 페이즈 진입 시 `in_progress`, 완료 시 `completed`, 조건부 스킵 시 `cancelled`로 업데이트하라.
+
+**`todowrite`는 전체 목록을 교체하므로, 호출 시 항상 전체 항목을 포함해야 한다.**
+
+### 초기 `todowrite` 호출 (커멘드 시작 즉시)
+
+```json
+[
+  { "id": "p1",   "content": "PHASE 1: Monorepo Detection",                          "priority": "high",   "status": "pending" },
+  { "id": "p2a",  "content": "PHASE 2A: Inherit CODE STANDARDS (monorepo only)",     "priority": "high",   "status": "pending" },
+  { "id": "p2b",  "content": "PHASE 2B: Interview — naming/style (standalone only)", "priority": "high",   "status": "pending" },
+  { "id": "p3",   "content": "PHASE 3: Generate AGENTS.md",                          "priority": "high",   "status": "pending" },
+  { "id": "p4",   "content": "PHASE 4: Generate RULES.md",                           "priority": "high",   "status": "pending" },
+  { "id": "p5",   "content": "PHASE 5: Generate ARCHITECTURE.md",                    "priority": "high",   "status": "pending" },
+  { "id": "p6",   "content": "PHASE 6: Save Files",                                  "priority": "high",   "status": "pending" },
+  { "id": "p6m",  "content": "PHASE 6-M: Update root AGENTS.md (monorepo only)",     "priority": "medium", "status": "pending" },
+  { "id": "p7",   "content": "PHASE 7: Greenfield Detection",                        "priority": "high",   "status": "pending" },
+  { "id": "p8",   "content": "PHASE 8: Initialization Approval Gate (user approval)","priority": "high",   "status": "pending" },
+  { "id": "p9",   "content": "PHASE 9: Initialize Project Structure",                "priority": "high",   "status": "pending" },
+  { "id": "p10",  "content": "PHASE 10: git init (standalone only)",                 "priority": "medium", "status": "pending" },
+  { "id": "p11",  "content": "PHASE 11: Verification Pipeline",                      "priority": "high",   "status": "pending" },
+  { "id": "p12",  "content": "PHASE 12: Record troubleshooting",                     "priority": "medium", "status": "pending" },
+  { "id": "p13",  "content": "PHASE 13: Initial Commit (user approval required)",    "priority": "medium", "status": "pending" },
+  { "id": "p14",  "content": "PHASE 14: Completion Report",                          "priority": "low",    "status": "pending" }
+]
+```
+
+---
+
 ## PHASE 1: Monorepo Detection
+
+> ▶ `todowrite`: `p1` → `in_progress`
 
 Check if a `pnpm-workspace.yaml` exists by traversing parent directories up from the target path.
 
@@ -25,9 +58,13 @@ Detection rule:
   If not found                    → standalone mode (PHASE 2B)
 ```
 
+> ✅ `todowrite`: `p1` → `completed`
+
 ---
 
 ## PHASE 2A: Monorepo Mode — Inherit CODE STANDARDS from root
+
+> ▶ `todowrite`: `p2a` → `in_progress`, `p2b` → `cancelled`
 
 Read the root `RULES.md` found in PHASE 1.
 
@@ -45,9 +82,13 @@ If any item is missing or ambiguous in the root RULES.md, interview only for tho
 
 After resolving all values, proceed to **PHASE 3**.
 
+> ✅ `todowrite`: `p2a` → `completed`
+
 ---
 
 ## PHASE 2B: Standalone Mode — Interview
+
+> ▶ `todowrite`: `p2b` → `in_progress`, `p2a` → `cancelled`
 
 Collect the following via `ask_user_input_v0`:
 
@@ -86,9 +127,13 @@ Q-T2. Function declaration style
 
 After collecting all answers, proceed to **PHASE 3**.
 
+> ✅ `todowrite`: `p2b` → `completed`
+
 ---
 
 ## PHASE 3: Generate AGENTS.md
+
+> ▶ `todowrite`: `p3` → `in_progress`
 
 Create `$ARGUMENTS/AGENTS.md` with the following content.
 
@@ -217,9 +262,13 @@ Starting work without root `RULES.md` is prohibited.
 | Environment variables | `.env.example` |
 ```
 
+> ✅ `todowrite`: `p3` → `completed`
+
 ---
 
 ## PHASE 4: Generate RULES.md
+
+> ▶ `todowrite`: `p4` → `in_progress`
 
 Create `$ARGUMENTS/RULES.md` with the following content.
 
@@ -378,9 +427,13 @@ const order = await bigintFetch<Order>('/api/orders', {
 - **Don't** use `.toString()` inline as a workaround — it breaks downstream type contracts
 ```
 
+> ✅ `todowrite`: `p4` → `completed`
+
 ---
 
 ## PHASE 5: Generate ARCHITECTURE.md
+
+> ▶ `todowrite`: `p5` → `in_progress`
 
 Create `$ARGUMENTS/ARCHITECTURE.md` with the following content.
 
@@ -433,9 +486,13 @@ Create `$ARGUMENTS/ARCHITECTURE.md` with the following content.
 - Prefer built-in Node.js APIs over external packages where feasible
 ```
 
+> ✅ `todowrite`: `p5` → `completed`
+
 ---
 
 ## PHASE 6: Save Files
+
+> ▶ `todowrite`: `p6` → `in_progress`
 
 Write all three files using the file write tool (not shell redirection — escape issues may occur).
 
@@ -446,9 +503,33 @@ Write all three files using the file write tool (not shell redirection — escap
 
 After saving, print the saved paths.
 
+> ✅ `todowrite`: `p6` → `completed`
+
+---
+
+## PHASE 6-M: Update root AGENTS.md PROJECT STRUCTURE (monorepo mode only)
+
+> ▶ `todowrite`: `p6m` → `in_progress` (monorepo) or `cancelled` (standalone)
+
+**Skip this phase if MODE=standalone.**
+
+Open the root `AGENTS.md` (found during PHASE 1 monorepo detection).
+
+Locate the `## PROJECT STRUCTURE` fenced code block and find the line for the parent directory (`apps/` or `packages/`). Append the new entry as a child item:
+
+```
+│   └── {TARGET_DIR_NAME}/   # TypeScript library
+```
+
+If the parent directory line already has child entries, use `├──` for existing entries and `└──` for the new last entry. Save the updated root `AGENTS.md`.
+
+> ✅ `todowrite`: `p6m` → `completed`
+
 ---
 
 ## PHASE 7: Greenfield Detection
+
+> ▶ `todowrite`: `p7` → `in_progress`
 
 Check whether `$ARGUMENTS/src/` exists.
 
@@ -463,9 +544,13 @@ ERROR: Source files detected at $ARGUMENTS/src/.
 
 - **Does not exist** → proceed to **PHASE 8**.
 
+> ✅ `todowrite`: `p7` → `completed`
+
 ---
 
 ## PHASE 8: Initialization Approval Gate ⚠️ User approval required
+
+> ▶ `todowrite`: `p8` → `in_progress`
 
 Do not create any files or directories without approval.
 
@@ -480,9 +565,13 @@ Q. AGENTS.md, RULES.md, and ARCHITECTURE.md have been created.
 
 If the user selects **No**, print the completion report and exit.
 
+> ✅ `todowrite`: `p8` → `completed` (Yes) or `cancelled` (No → exit)
+
 ---
 
 ## PHASE 9: Initialize Project Structure
+
+> ▶ `todowrite`: `p9` → `in_progress`
 
 Create the following files in `$ARGUMENTS/`:
 
@@ -594,9 +683,13 @@ describe('{dir-name} smoke test', () => {
 });
 ```
 
+> ✅ `todowrite`: `p9` → `completed`
+
 ---
 
 ## PHASE 10: git init (standalone mode only)
+
+> ▶ `todowrite`: `p10` → `in_progress` (standalone) or `cancelled` (monorepo)
 
 **Skip this phase if MODE=monorepo** — the root repository already covers this package.
 
@@ -612,9 +705,13 @@ git branch -M main
 If `git user.name` / `user.email` is not configured, notify the user and record the warning.
 The initial commit will be requested in **PHASE 13: Initial Commit** after verification and troubleshooting.
 
+> ✅ `todowrite`: `p10` → `completed`
+
 ---
 
 ## PHASE 11: Verification Pipeline (auto-run)
+
+> ▶ `todowrite`: `p11` → `in_progress`
 
 Run automatically after initialization. Do not report completion without running verification.
 
@@ -627,42 +724,27 @@ pnpm vitest run
 
 If a command is unavailable or config is missing, report to the user immediately.
 
+> ✅ `todowrite`: `p11` → `completed`
+
 ---
 
 ## PHASE 12: Record troubleshooting
 
-Call `@document-writer` with:
+> ▶ `todowrite`: `p12` → `in_progress`
 
-> Extract AI mistakes and incorrect implementations from this entire workflow and record them in `TROUBLE_SHOOT.md` at the project root.
->
-> **What to extract** — record only these types (exclude normal design decisions or user requirement changes):
-> - Code incorrectly implemented by AI that required fixes — **even if fixed during scaffolding**
-> - Repeated error patterns in the self-correction loop
-> - Gaps or errors flagged by Metis or Momus
-> - Assertion translation errors found in spec↔test validation
->
-> **Trigger rule:** if ANY item above occurred during this workflow, create or update `TROUBLE_SHOOT.md`.
-> The fact that an issue was resolved before completion does NOT exempt it from being recorded —
-> resolved issues are the most valuable entries because they contain the fix.
-> Skip only if the workflow completed with zero AI mistakes and zero self-correction loops.
->
-> **Format** — write each item as:
->
-> ```markdown
-> ## [YYYY-MM-DD] {task keyword}
->
-> - {one-line rule or checkpoint to prevent recurrence}
-> - {add lines if multiple items}
-> ```
->
-> **File handling:**
-> - If `TROUBLE_SHOOT.md` already exists — keep existing content and prepend the new entry
-> - If it does not exist — create it
-> - If there are no troubleshooting items from this workflow — skip this step
+Run `/gen-trouble-shoot --source init --label init-ts-empty`
+
+> `/gen-trouble-shoot` will scan this session, extract AI mistakes and incorrect
+> implementations that occurred during scaffolding, and write them to `TROUBLE_SHOOT.md`.
+> No action is needed here beyond invoking the command.
+
+> ✅ `todowrite`: `p12` → `completed`
 
 ---
 
 ## PHASE 13: Initial Commit ⚠️
+
+> ▶ `todowrite`: `p13` → `in_progress`
 
 If `.git/` does not exist in the project root, skip this phase entirely.
 
@@ -693,9 +775,13 @@ git add .
 git commit -m "chore: initialize TypeScript project\n\n- Add AGENTS.md, RULES.md, ARCHITECTURE.md\n- Scaffold empty TypeScript structure"
 ```
 
+> ✅ `todowrite`: `p13` → `completed`
+
 ---
 
 ## PHASE 14: Completion Report
+
+> ▶ `todowrite`: `p14` → `in_progress`
 
 ```
 AGENTS.md saved          : $ARGUMENTS/AGENTS.md
@@ -711,3 +797,5 @@ Verification pipeline
   eslint                 : {PASS | FAIL — error details}
   vitest run             : {PASS | FAIL}
 ```
+
+> ✅ `todowrite`: `p14` → `completed`

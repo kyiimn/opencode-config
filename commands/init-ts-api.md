@@ -7,7 +7,36 @@ Detects monorepo context automatically — inherits CODE STANDARDS from root if 
 
 ---
 
+## TODO MANAGEMENT — Required
+
+커멘드 시작 직후 `todowrite`를 호출하여 전체 페이즈를 등록하라. 이후 각 페이즈 진입 시 `in_progress`, 완료 시 `completed`, 조건부 스킵 시 `cancelled`로 업데이트하라.
+
+**`todowrite`는 전체 목록을 교체하므로, 호출 시 항상 전체 항목을 포함해야 한다.**
+
+### 초기 `todowrite` 호출 (커멘드 시작 즉시)
+
+```json
+[
+  { "id": "p0",  "content": "PHASE 0: Detect context (monorepo/standalone)",       "priority": "high",   "status": "pending" },
+  { "id": "p1",  "content": "PHASE 1: Collect conventions (standalone only)",       "priority": "medium", "status": "pending" },
+  { "id": "p2",  "content": "PHASE 2: Collect API options (DB, auth, IP filter)",   "priority": "high",   "status": "pending" },
+  { "id": "p3",  "content": "PHASE 3: Write AGENTS.md / RULES.md / ARCHITECTURE.md","priority": "high",   "status": "pending" },
+  { "id": "p3m", "content": "PHASE 3-M: Update root AGENTS.md (monorepo only)",     "priority": "medium", "status": "pending" },
+  { "id": "p4",  "content": "PHASE 4: Scaffold files",                              "priority": "high",   "status": "pending" },
+  { "id": "p4s", "content": "PHASE 4-S: Skill delegation (logger/ip-filter/auth)",  "priority": "high",   "status": "pending" },
+  { "id": "p5",  "content": "PHASE 5: git init (standalone only)",                  "priority": "medium", "status": "pending" },
+  { "id": "p6",  "content": "PHASE 6: Verify (install/typecheck/lint/test)",        "priority": "high",   "status": "pending" },
+  { "id": "p7",  "content": "PHASE 7: Record troubleshooting (gen-trouble-shoot)",  "priority": "medium", "status": "pending" },
+  { "id": "p8",  "content": "PHASE 8: Initial Commit (user approval required)",     "priority": "medium", "status": "pending" },
+  { "id": "p9",  "content": "PHASE 9: Report",                                      "priority": "low",    "status": "pending" }
+]
+```
+
+---
+
 ## PHASE 0: Detect context
+
+> ▶ `todowrite`: `p0` → `in_progress`
 
 **Step 1 — Resolve target path.**
 `$ARGUMENTS` is the directory to create (e.g. `apps/order-api`). Abort if it already contains source files.
@@ -18,9 +47,13 @@ Traverse parent directories up to filesystem root. Check for `pnpm-workspace.yam
 - Found → **monorepo mode**: read root `RULES.md#code-standards`, skip PHASE 1.
 - Not found → **standalone mode**: run PHASE 1.
 
+> ✅ `todowrite`: `p0` → `completed` / `p1` → `cancelled` (monorepo mode) or `pending` (standalone mode)
+
 ---
 
 ## PHASE 1: Collect conventions (standalone mode only)
+
+> ▶ `todowrite`: `p1` → `in_progress`
 
 Use `ask_user_input_v0`:
 
@@ -35,9 +68,13 @@ Q-T2. Fn style:      arrow-first | function-first | mixed
 
 Project name = `$ARGUMENTS` basename (e.g. `apps/order-api` → `order-api`).
 
+> ✅ `todowrite`: `p1` → `completed`
+
 ---
 
 ## PHASE 2: Collect API options
+
+> ▶ `todowrite`: `p2` → `in_progress`
 
 Use `ask_user_input_v0`:
 
@@ -47,9 +84,13 @@ Q-A2. JWT auth module:    include | exclude
 Q-A3. IP filter middleware: include | exclude
 ```
 
+> ✅ `todowrite`: `p2` → `completed`
+
 ---
 
 ## PHASE 3: Write AGENTS.md (and RULES.md if standalone)
+
+> ▶ `todowrite`: `p3` → `in_progress`
 
 Use `write_file` only — no shell redirects.
 
@@ -60,7 +101,7 @@ Use `write_file` only — no shell redirects.
 
 This file covers only `{TARGET_DIR}`-specific rules. Everything else inherits from root.
 
-> **Required:** Load root `/RULES.md` before running `/implement`.
+> **Required:** Load root `/RULES.md` before running `/start-work`.
 > Find root: `!git rev-parse --show-toplevel`
 
 | Inherited                | Source                     |
@@ -79,32 +120,13 @@ This file covers only `{TARGET_DIR}`-specific rules. Everything else inherits fr
 ## STRUCTURE
 
 ```
-prisma/
-├── schema.prisma              # outside src/ — do not move
-└── migrations/
+prisma/          # Prisma schema and migrations — outside src/
 src/
-├── app.ts
-├── lib/
-│   ├── index.ts
-│   ├── db.ts
-│   └── db-error.ts
-├── common/infrastructure/http/
-│   └── ip-filter.middleware.ts   # [optional]
-├── modules/{feature}/
-│   ├── domain/
-│   │   ├── {feature}.repository.interface.ts
-│   │   └── {feature}.validation.ts
-│   ├── application/
-│   │   └── {feature}.service.ts
-│   └── infrastructure/
-│       ├── persistence/{feature}.repository.ts
-│       └── http/
-│           ├── {feature}.controller.ts
-│           └── {feature}.route.ts
-├── test/
-│   ├── setup.ts
-│   └── app.ts
-└── generated/   # Prisma output — do not edit manually
+├── lib/         # Prisma client singleton, shared utilities
+├── modules/     # Domain modules (DDD: domain / application / infrastructure)
+├── common/      # Shared infrastructure (middlewares, etc.)
+├── test/        # Integration test setup
+└── generated/   # Prisma client output — do not edit manually
 ```
 
 Dependency direction: `infrastructure` → `application` → `domain`
@@ -147,13 +169,14 @@ Inherits from `/AGENTS.md`. Conventional Commits. Pass `tsc --noEmit` + lint bef
 @{TARGET_DIR}/ARCHITECTURE.md # DDD layer rules + code templates
 ```
 
-| When              | Load                      |
-| ----------------- | ------------------------- |
-| Writing code      | `RULES.md#code-standards` |
-| Module/layer work | `ARCHITECTURE.md`         |
-| Using the logger  | `RULES.md#logger`         |
-| DB schema         | `prisma/schema.prisma`    |
-| Env vars          | `.env.example`            |
+| When              | Load                              |
+| ----------------- | --------------------------------- |
+| Writing code      | `RULES.md#code-standards`         |
+| Module/layer work | `ARCHITECTURE.md`                 |
+| Using the logger  | `RULES.md#logger`                 |
+| Implementing API  | `RULES.md#contract-compliance`    |
+| DB schema         | `prisma/schema.prisma`            |
+| Env vars          | `.env.example`                    |
 ````
 
 ---
@@ -172,6 +195,7 @@ Inherits from `/AGENTS.md`. Conventional Commits. Pass `tsc --noEmit` + lint bef
 - [`#code-standards`](#code-standards)
 - [`#logger`](#logger)
 - [`#bigint-json`](#bigint-json) — BigInt-safe JSON · Express middleware
+- [`#contract-compliance`](#contract-compliance) — API contract verification during implementation
 
 > DDD layer architecture, module structure, code templates, and new-module checklist → [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 
@@ -309,6 +333,36 @@ app.use(bigintJsonMiddleware());
 - **Don't** use native `JSON.stringify` / `JSON.parse` for API payloads containing BigInt
 - **Don't** cast `bigint` to `Number` — values > 2^53 − 1 lose precision silently
 - **Don't** use `.toString()` inline as a workaround — it breaks downstream type contracts
+
+---
+
+## CONTRACT COMPLIANCE {#contract-compliance}
+
+> Apply when `.sisyphus/contract/{keyword}.md` exists for the current task.
+> This section is enforced during `/start-work` execution.
+
+Before marking any endpoint implementation as complete, the implementing agent MUST:
+
+1. Read `$REPO_ROOT/.sisyphus/contract/{keyword}.md`
+2. Compare the actual response shape (success body, status code, error codes) against the contract
+3. If any mismatch exists, fix the code before proceeding to the next task
+
+### Checklist per endpoint
+
+| Check | What to verify |
+|-------|---------------|
+| Success status code | Matches contract exactly (e.g. `201` not `200`) |
+| Success body shape | All field names, types, and nesting match |
+| Error status codes | Every error case in the contract is handled |
+| Error codes | String error codes match verbatim (e.g. `ALREADY_REFUNDED`) |
+| Envelope format | `{ ok, data }` / `{ ok, message, code }` matches project convention |
+
+### Do / Don't
+
+- **Do** read the contract file at the start of each endpoint implementation
+- **Do** fix mismatches immediately — do not defer to test phase
+- **Don't** invent response fields or error codes not in the contract
+- **Don't** skip this check even if the plan's `### Expected Contract` subsection is present — always verify against the contract file as the single source of truth
 ```
 
 ### 3-3. `$ARGUMENTS/ARCHITECTURE.md` (always, both modes)
@@ -631,9 +685,33 @@ $ARGUMENTS/ARCHITECTURE.md
 
 Report saved paths to the user.
 
+> ✅ `todowrite`: `p3` → `completed`
+
+---
+
+## PHASE 3-M: Update root AGENTS.md PROJECT STRUCTURE (monorepo mode only)
+
+> ▶ `todowrite`: `p3m` → `in_progress` (monorepo) or `cancelled` (standalone)
+
+**Skip this phase if MODE=standalone.**
+
+Open the root `AGENTS.md` (found during PHASE 0 monorepo detection).
+
+Locate the `## PROJECT STRUCTURE` fenced code block and find the line for the parent directory (`apps/` or `packages/`). Append the new entry as a child item:
+
+```
+│   └── {TARGET_DIR_NAME}/   # API server (Express + DDD + Prisma)
+```
+
+If the parent directory line already has child entries, use `├──` for existing entries and `└──` for the new last entry. Save the updated root `AGENTS.md`.
+
+> ✅ `todowrite`: `p3m` → `completed`
+
 ---
 
 ## PHASE 4: Scaffold files
+
+> ▶ `todowrite`: `p4` → `in_progress`
 
 Create all files under `$ARGUMENTS/` using `write_file`. Apply Q-A1/A2/A3 choices where noted.
 
@@ -1214,6 +1292,8 @@ prisma/*.db-journal
 
 ## PHASE 4-S: Skill delegation
 
+> ▶ `todowrite`: `p4` → `completed`, `p4s` → `in_progress`
+
 Run the following skills **in order**. Each has a hard branch — pick one and execute, no investigation needed.
 
 ### Logger
@@ -1231,9 +1311,13 @@ Run `ts-ip-filter` skill. Pass `TARGET_DIR = $ARGUMENTS`.
 
 Run `ts-auth-module` skill. Pass `TARGET_DIR = $ARGUMENTS`, `DB = {Q-A1}`.
 
+> ✅ `todowrite`: `p4s` → `completed`
+
 ---
 
 ## PHASE 5: git init (standalone mode only)
+
+> ▶ `todowrite`: `p5` → `in_progress` (standalone) or `cancelled` (monorepo)
 
 **Skip this phase if MODE=monorepo** — the root repository already covers this package.
 
@@ -1249,9 +1333,13 @@ git branch -M main
 If `git user.name` / `user.email` is not configured, notify the user and record the warning.
 The initial commit will be requested in **PHASE 8** after verification and troubleshooting.
 
+> ✅ `todowrite`: `p5` → `completed`
+
 ---
 
 ## PHASE 6: Verify
+
+> ▶ `todowrite`: `p6` → `in_progress`
 
 ```bash
 cd $ARGUMENTS
@@ -1264,42 +1352,27 @@ pnpm test          # skip if DATABASE_URL not set; notify user
 
 If `DATABASE_URL` is not configured, report which steps were skipped and what to run manually.
 
+> ✅ `todowrite`: `p6` → `completed`
+
 ---
 
 ## PHASE 7: Record troubleshooting
 
-Call `@document-writer` with:
+> ▶ `todowrite`: `p7` → `in_progress`
 
-> Extract AI mistakes and incorrect implementations from this entire workflow and record them in `TROUBLE_SHOOT.md` at the project root.
->
-> **What to extract** — record only these types (exclude normal design decisions or user requirement changes):
-> - Code incorrectly implemented by AI that required fixes — **even if fixed during scaffolding**
-> - Repeated error patterns in the self-correction loop
-> - Gaps or errors flagged by Metis or Momus
-> - Assertion translation errors found in spec↔test validation
->
-> **Trigger rule:** if ANY item above occurred during this workflow, create or update `TROUBLE_SHOOT.md`.
-> The fact that an issue was resolved before completion does NOT exempt it from being recorded —
-> resolved issues are the most valuable entries because they contain the fix.
-> Skip only if the workflow completed with zero AI mistakes and zero self-correction loops.
->
-> **Format** — write each item as:
->
-> ```markdown
-> ## [YYYY-MM-DD] {task keyword}
->
-> - {one-line rule or checkpoint to prevent recurrence}
-> - {add lines if multiple items}
-> ```
->
-> **File handling:**
-> - If `TROUBLE_SHOOT.md` already exists — keep existing content and prepend the new entry
-> - If it does not exist — create it
-> - If there are no troubleshooting items from this workflow — skip this step
+Run `/gen-trouble-shoot --source init --label init-ts-api`
+
+> `/gen-trouble-shoot` will scan this session, extract AI mistakes and incorrect
+> implementations that occurred during scaffolding, and write them to `TROUBLE_SHOOT.md`.
+> No action is needed here beyond invoking the command.
+
+> ✅ `todowrite`: `p7` → `completed`
 
 ---
 
 ## PHASE 8: Initial Commit ⚠️
+
+> ▶ `todowrite`: `p8` → `in_progress`
 
 If `.git/` does not exist in the project root, skip this phase entirely.
 
@@ -1330,9 +1403,13 @@ git add .
 git commit -m "chore: initialize TypeScript Express API project\n\n- Add AGENTS.md, RULES.md, ARCHITECTURE.md\n- Scaffold DDD + Prisma project structure"
 ```
 
+> ✅ `todowrite`: `p8` → `completed`
+
 ---
 
 ## PHASE 9: Report
+
+> ▶ `todowrite`: `p9` → `in_progress`
 
 ```
 AGENTS.md           : $ARGUMENTS/AGENTS.md
@@ -1357,6 +1434,8 @@ Verification
   db:generate       : {PASS | SKIPPED — DATABASE_URL not set}
   vitest run        : {PASS | SKIPPED — DATABASE_URL not set}
 ```
+
+> ✅ `todowrite`: `p9` → `completed`
 
 ---
 
