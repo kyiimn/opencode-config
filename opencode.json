@@ -21,7 +21,10 @@
       "command": [
         "npx",
         "-y",
-        "@executeautomation/playwright-mcp-server"
+        "@playwright/mcp@latest",
+        "--executable-path",
+        "/home/kyiimn/.cache/ms-playwright/chromium-1217/chrome-linux64/chrome",
+        "--headless"
       ],
       "enabled": true,
       "environment": {}

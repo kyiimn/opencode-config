@@ -19,7 +19,7 @@
       "prompt_append": "- [코드 탐색] 다른 에이전트가 유틸리티 함수나 공통 로직의 존재 여부를 물어볼 경우, 전역 유틸리티 디렉터리나 공용 패키지 내의 export된 함수들을 최우선으로 검색하여 정확한 import 경로와 사용법을 제공하십시오."
     },
     "multimodal-looker": {
-      "model": "ollama-cloud/gemma4:31b-cloud"
+      "model": "ollama-cloud/gemini-3-flash-preview"
     },
     "metis": {
       "model": "ollama-cloud/gemma4:31b-cloud",
@@ -35,19 +35,19 @@
       "model": "ollama-cloud/qwen3-coder-next"
     },
     "sisyphus": {
-      "model": "ollama-cloud/kimi-k2.6:cloud",
+      "model": "ollama-cloud/glm-5.1",
       "prompt_append": "- [코딩 규칙 - JSDoc 필수] 모든 함수, 클래스, 인터페이스 작성 시 JSDoc을 작성하십시오. 이 때 `@param`, `@throws`, `@returns` 태그는 예외 없이 반드시 포함되어야 합니다.\n- [코딩 규칙 - 예시 포함] 구현하는 로직이 복잡하거나 분기 처리가 많은 경우, 다른 개발자가 이해할 수 있도록 JSDoc 내에 `@example` 태그를 사용하여 구체적인 사용 예시 코드를 반드시 포함하십시오.\n- [중복 구현 방지] 유틸리티 성격의 함수를 새로 작성해야 할 경우, 즉시 코딩을 시작하지 말고 작업 공간 내에 공용으로 쓰이는 함수가 있는지 탐색 도구(AST-Grep 또는 검색)를 통해 한 번 더 확인하십시오.\n- [검증 단계] 코딩 완료 직후, 본인이 작성한 JSDoc에 필수 태그가 모두 있는지, 테스트 시나리오를 통과하는지 자가 점검하십시오."
     },
     "frontend-ui-ux-engineer": {
-      "model": "ollama-cloud/gemma4:31b-cloud"
+      "model": "ollama-cloud/gemini-3-flash-preview"
     },
     "document-writer": {
-      "model": "ollama-cloud/kimi-k2.6:cloud"
+      "model": "ollama-cloud/kimi-k2.5"
     }
   },
   "categories": {
     "visual-engineering": {
-      "model": "ollama-cloud/gemma4:31b-cloud"
+      "model": "ollama-cloud/gemini-3-flash-preview"
     },
     "ultrabrain": {
       "model": "ollama-cloud/glm-5.1"
@@ -68,7 +68,7 @@
       "model": "ollama-cloud/glm-5.1"
     },
     "writing": {
-      "model": "ollama-cloud/gemma4:31b-cloud"
+      "model": "ollama-cloud/gemini-3-flash-preview"
     }
   },
   "experimental": {
